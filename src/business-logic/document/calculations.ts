@@ -1,5 +1,7 @@
 // src/business-logic/invoice/calculations.ts
 
+import type { DocumentLine } from "../../schemas/document.schema.js";
+
 /**
  * ---------------------------------------------------------------------
  * Invoice business calculations
@@ -106,4 +108,30 @@ export function calculateTotalTTC(params: {
   const withholding = calculateWithholding(params.allowances);
 
   return round(params.subtotalHT + params.totalTax - withholding);
+}
+
+/**
+ * Calculates total tax amount from invoice lines
+ * Assumes:
+ * - line.total = quantity * unitPrice
+ * - line.taxRate expressed as percentage (e.g. 19 for 19%)
+ */
+export function calculateTaxTotal(lines: DocumentLine[]): number {
+  return round(
+    lines.reduce((sum, line) => {
+      const lineTax =
+        (line.quantity * line.unitPrice.amount * line.taxRate) / 100;
+      return sum + lineTax;
+    }, 0)
+  );
+}
+
+/**
+ * Calculates grand total (TTC)
+ */
+export function calculateGrandTotal(
+  subtotal: number,
+  taxTotal: number
+): number {
+  return round(subtotal + taxTotal);
 }
