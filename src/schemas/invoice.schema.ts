@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  calculateSubtotal,
+  calculateWithholding,
+  round,
+} from "../business-logic/invoice/calculations.js";
 
 /**
  * ---------------------------------------------------------------------
@@ -94,52 +99,6 @@ export type DeliveryLocation = z.infer<typeof DeliveryLocationSchema>;
  * Invoice lines
  * ---------------------------------------------------------------------
  */
-
-function round(amount: number): number {
-  return Math.round(amount * 1000) / 1000;
-}
-
-function calculateLineTotal(
-  quantity: number,
-  unitPrice: number,
-  discountRate?: number
-): number {
-  const base = quantity * unitPrice;
-  const discount = discountRate ? base * (discountRate / 100) : 0;
-
-  return round(base - discount);
-}
-
-type LineForCalculation = Pick<
-  InvoiceLine,
-  "quantity" | "unitPrice" | "discountRate"
->;
-
-function calculateSubtotal(lines: LineForCalculation[]): number {
-  return round(
-    lines.reduce(
-      (sum, l) =>
-        sum +
-        calculateLineTotal(l.quantity, l.unitPrice.amount, l.discountRate),
-      0
-    )
-  );
-}
-
-type InvoiceAllowance = {
-  type: "DISCOUNT" | "SURCHARGE" | "WITHHOLDING";
-  amount: { amount: number; currency: string };
-};
-
-function calculateWithholding(allowances?: InvoiceAllowance[]): number {
-  if (!allowances) return 0;
-
-  return round(
-    allowances
-      .filter((a) => a.type === "WITHHOLDING")
-      .reduce((sum, a) => sum + a.amount.amount, 0)
-  );
-}
 
 export const InvoiceLineSchema = z.object({
   lineNumber: z.number().int().positive(),
