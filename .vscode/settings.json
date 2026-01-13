@@ -9,6 +9,6 @@
       "mode": "auto"
     }
   ],
-  "cSpell.words": ["exiry", "TEIF"],
+  "cSpell.words": ["exiry", "kysely", "TEIF"],
   "typescript.tsdk": "node_modules/typescript/lib"
 }
