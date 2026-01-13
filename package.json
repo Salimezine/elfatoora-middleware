@@ -1,5 +1,5 @@
 {
-  "name": "tkr-efatoura-api",
+  "name": "tkr-elfatoora-api",
   "version": "0.1.0",
   "description": "Middleware API for TEIF electronic invoicing: JSON validation, TEIF XML generation, digital signing via ngsign, TTN submission, polling, signature verification, and webhooks for third-party invoicing systems.",
   "private": true,
