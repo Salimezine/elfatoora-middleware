@@ -1,0 +1,42 @@
+{
+  "name": "tkr-efatoura-api",
+  "version": "0.1.0",
+  "description": "Middleware API for TEIF electronic invoicing: JSON validation, TEIF XML generation, digital signing via ngsign, TTN submission, polling, signature verification, and webhooks for third-party invoicing systems.",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "packageManager": "pnpm@10.27.0",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "tsx --test",
+    "test:watch": "tsx --test --watch",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "libxmljs2": "^0.37.0",
+    "node-cron": "^4.2.1",
+    "uuid": "^13.0.0",
+    "xml-crypto": "^6.1.2",
+    "xmlbuilder2": "^4.0.3",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^22",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
+    "prettier": "^3.7.4",
+    "rimraf": "^6.1.2",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  }
+}
