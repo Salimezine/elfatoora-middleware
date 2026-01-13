@@ -3,7 +3,7 @@ import {
   calculateSubtotal,
   calculateWithholding,
   round,
-} from "../business-logic/invoice/calculations.js";
+} from "../business-logic/document/calculations.js";
 
 /**
  * ---------------------------------------------------------------------
@@ -96,11 +96,11 @@ export type DeliveryLocation = z.infer<typeof DeliveryLocationSchema>;
 
 /**
  * ---------------------------------------------------------------------
- * Invoice lines
+ * Document lines
  * ---------------------------------------------------------------------
  */
 
-export const InvoiceLineSchema = z.object({
+export const DocumentLineSchema = z.object({
   lineNumber: z.number().int().positive(),
   description: z.string().min(1).max(500),
   quantity: z.number().positive(),
@@ -109,7 +109,7 @@ export const InvoiceLineSchema = z.object({
   discountRate: z.number().min(0).max(100).optional(),
 });
 
-export type InvoiceLine = z.infer<typeof InvoiceLineSchema>;
+export type DocumentLine = z.infer<typeof DocumentLineSchema>;
 
 /**
  * ---------------------------------------------------------------------
@@ -117,13 +117,13 @@ export type InvoiceLine = z.infer<typeof InvoiceLineSchema>;
  * ---------------------------------------------------------------------
  */
 
-export const InvoiceTotalsSchema = z.object({
+export const DocumentTotalsSchema = z.object({
   subtotalHT: MoneySchema,
   totalTax: MoneySchema,
   totalTTC: MoneySchema,
 });
 
-export type InvoiceTotals = z.infer<typeof InvoiceTotalsSchema>;
+export type DocumentTotals = z.infer<typeof DocumentTotalsSchema>;
 
 /**
  * ---------------------------------------------------------------------
@@ -142,11 +142,11 @@ export type PaymentTerms = z.infer<typeof PaymentTermsSchema>;
 
 /**
  * ---------------------------------------------------------------------
- * Invoice-level allowances / charges (TEIF InvoiceAlc)
+ * Document-level allowances / charges (TEIF DocumentAlc)
  * ---------------------------------------------------------------------
  */
 
-export const InvoiceAllowanceSchema = z.object({
+export const DocumentAllowanceSchema = z.object({
   type: z.enum([
     "DISCOUNT", // Global discount
     "SURCHARGE", // Surcharge
@@ -176,35 +176,35 @@ export type AdditionalDocument = z.infer<typeof AdditionalDocumentSchema>;
  * ---------------------------------------------------------------------
  */
 
-export const InvoiceHeaderSchema = z.object({
-  invoiceNumber: z.string().min(1).max(70),
+export const DocumentHeaderSchema = z.object({
+  documentNumber: z.string().min(1).max(70),
   issueDate: z.iso.date(),
-  type: z.enum(["INVOICE", "CREDIT_NOTE"]),
+  type: z.enum(["INVOICE", "CREDIT_NOTE", "DEBIT_NOTE"]).default("INVOICE"),
 });
 
-export type InvoiceHeader = z.infer<typeof InvoiceHeaderSchema>;
+export type DocumentHeader = z.infer<typeof DocumentHeaderSchema>;
 
 /**
  * ---------------------------------------------------------------------
- * Root invoice schema
+ * Root document schema
  * ---------------------------------------------------------------------
  */
 
-export const InvoiceSchema = z
+export const DocumentSchema = z
   .object({
-    header: InvoiceHeaderSchema,
+    header: DocumentHeaderSchema,
     seller: PartySchema,
     buyer: PartySchema,
 
     deliveryLocation: DeliveryLocationSchema.optional(),
 
-    lines: z.array(InvoiceLineSchema).min(1),
+    lines: z.array(DocumentLineSchema).min(1),
 
-    totals: InvoiceTotalsSchema,
+    totals: DocumentTotalsSchema,
 
     paymentTerms: PaymentTermsSchema.optional(),
 
-    allowances: z.array(InvoiceAllowanceSchema).optional(),
+    allowances: z.array(DocumentAllowanceSchema).optional(),
 
     additionalDocuments: z.array(AdditionalDocumentSchema).optional(),
 
@@ -261,4 +261,4 @@ export const InvoiceSchema = z
     }
   });
 
-export type Invoice = z.infer<typeof InvoiceSchema>;
+export type Document = z.infer<typeof DocumentSchema>;

@@ -5,9 +5,11 @@ import type {
   Response,
 } from "express";
 import { Router } from "express";
-import { InvoiceSchema } from "../schemas/invoice.schema.js";
+import { saveIncomingDocument } from "../business-logic/document/save-incoming-document.js";
+import { db } from "../db/client.js";
+import { DocumentSchema } from "../schemas/document.schema.js";
 
-export const invoicesRouter: ExpressRouter = Router();
+export const documentsRouter: ExpressRouter = Router();
 
 /**
  * ---------------------------------------------------------------------
@@ -15,7 +17,7 @@ export const invoicesRouter: ExpressRouter = Router();
  * Create a new invoice (async workflow)
  * ---------------------------------------------------------------------
  */
-invoicesRouter.post(
+documentsRouter.post(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -23,8 +25,9 @@ invoicesRouter.post(
 
       // TODO:
       // 1. Validate payload with Zod
-      const validatedPayload = InvoiceSchema.parse(payload);
+      const validatedPayload = DocumentSchema.parse(payload);
       // 2. Persist initial invoice state (RECEIVED)
+      await saveIncomingDocument(db, validatedPayload);
       // 3. Map JSON → TEIF XML
       // 4. Validate TEIF against XSD
       // 5. Sign XML via ngsign
@@ -47,7 +50,7 @@ invoicesRouter.post(
  * Retrieve invoice processing status
  * ---------------------------------------------------------------------
  */
-invoicesRouter.get(
+documentsRouter.get(
   "/:id/status",
   async (req: Request, res: Response, next: NextFunction) => {
     try {

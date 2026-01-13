@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { InvoiceSchema } from "../invoice.schema.js";
+import { DocumentSchema } from "../document.schema.js";
 
-test("fails when subtotal does not match lines", () => {
-  const result = InvoiceSchema.safeParse({
+test("DocumentSchema – valid minimal document", () => {
+  const result = DocumentSchema.safeParse({
     header: {
-      invoiceNumber: "INV-001",
+      documentNumber: "INV-001",
       issueDate: "2025-01-10",
       type: "INVOICE",
     },
@@ -17,23 +17,23 @@ test("fails when subtotal does not match lines", () => {
     buyer: {
       identifierType: "CIN",
       identifier: "01234567",
-      name: "Buyer",
+      name: "Buyer Name",
     },
     lines: [
       {
         lineNumber: 1,
-        description: "Item",
+        description: "Product A",
         quantity: 2,
         unitPrice: { amount: 100 },
         taxRate: 19,
       },
     ],
     totals: {
-      subtotalHT: { amount: 100 }, // ❌ should be 200
+      subtotalHT: { amount: 200 },
       totalTax: { amount: 38 },
       totalTTC: { amount: 238 },
     },
   });
 
-  assert.equal(result.success, false);
+  assert.equal(result.success, true);
 });

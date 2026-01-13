@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { PartySchema } from "../invoice.schema.js";
+import { PartySchema } from "../document.schema.js";
 
 test("PartySchema – valid FISCAL_ID", () => {
   const result = PartySchema.safeParse({
