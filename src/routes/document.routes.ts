@@ -8,6 +8,10 @@ import { Router } from "express";
 import { saveIncomingDocument } from "../business-logic/document/save-incoming-document.js";
 import { mapInvoiceToTeifXml } from "../business-logic/teif/map-json-to-teif.js";
 import { buildTeifXml } from "../business-logic/teif/teif-xml-builder.js";
+import {
+  validateTeifXsd,
+  xds,
+} from "../business-logic/teif/validate-teif-xsd.js";
 import { db } from "../db/client.js";
 import { DocumentSchema } from "../schemas/document.schema.js";
 
@@ -25,17 +29,20 @@ documentsRouter.post(
     try {
       const payload = req.body;
 
-      // TODO:
       // 1. Validate payload with Zod
       const validatedPayload = DocumentSchema.parse(payload);
+
       // 2. Persist initial invoice state (RECEIVED)
       await saveIncomingDocument(db, validatedPayload);
+
       // 3. Map JSON → TEIF XML
       const teifObject = mapInvoiceToTeifXml(validatedPayload);
       const teifXml = buildTeifXml(teifObject);
 
       // 4. Validate TEIF against XSD
-      // 5. Sign XML via ngsign
+      validateTeifXsd(teifXml, xds.teifWithoutSig);
+
+      // 5. Sign XML via NGSign
       // 6. Submit to TTN
       // 7. Update state to PENDING
 
