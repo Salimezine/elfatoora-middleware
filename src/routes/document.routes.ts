@@ -129,3 +129,52 @@ documentsRouter.post(
     }
   }
 );
+
+/**
+ * ---------------------------------------------------------------------
+ * GET /v1/documents/callback/:status?hash=
+ * Handle NGSign callback with status and hash
+ * ---------------------------------------------------------------------
+ */
+documentsRouter.get(
+  "/callback/:status",
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { hash } = req.query;
+
+      const status = z
+        .enum(["success", "failure"])
+        .safeParse(req.params.status);
+      if (!status.success) {
+        res.status(400).json({
+          message: "Status must be either 'success' or 'failure'",
+        });
+        return;
+      }
+
+      if (!hash || typeof hash !== "string") {
+        res.status(400).json({
+          message: "Missing or invalid hash parameter",
+        });
+        return;
+      }
+
+      // Decode hash from base64
+      const decoded = Buffer.from(hash, "base64").toString("utf-8");
+      const [uuid, documentId, customerId] = decoded.split(":");
+
+      if (!uuid || !documentId || !customerId) {
+        res.status(400).json({
+          message: "Invalid hash format",
+        });
+        return;
+      }
+
+      // Check existing callback entry
+      // Update the correct entry based on UUID and document ID
+      // Redirect the correct callback url
+    } catch (err) {
+      next(err);
+    }
+  }
+);
