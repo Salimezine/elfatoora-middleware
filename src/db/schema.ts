@@ -126,6 +126,33 @@ export interface DocumentEventsTable {
   created_at: Date;
 }
 
+export interface TkrCustomers {
+  id: Generated<string>;
+  name: string;
+  tax_id: string;
+  mode: "TEST" | "PROD";
+  ngsign_token: string;
+  ngsign_signer_email: string;
+  default_success_url: string | null;
+  default_failure_url: string | null;
+  ttn_login: string | null;
+  ttn_password: string | null;
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface TkrCustomersTokens {
+  id: Generated<string>;
+  customer_id: string;
+  token: string;
+  name: string;
+  is_active: boolean;
+  expiration_date: Date | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
 /**
  * ---------------------------------------------------------------------
  * Database mapping (suffix-aware)
@@ -142,6 +169,10 @@ type Tables<P extends string> = {
   [K in `${P}invoice_submissions`]: InvoiceSubmissionsTable;
 } & {
   [K in `${P}document_events`]: DocumentEventsTable;
+} & {
+  [K in `${P}tkr_customers`]: TkrCustomers;
+} & {
+  [K in `${P}tkr_customer_tokens`]: TkrCustomersTokens;
 };
 
 export type DB = Tables<typeof suffix>;

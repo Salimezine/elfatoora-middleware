@@ -2,6 +2,8 @@ import "dotenv/config";
 import type { NextFunction, Request, Response } from "express";
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { verifyToken } from "./business-logic/auth/token.js";
+import type { TkrCustomers } from "./db/schema.js";
 import { router } from "./routes/index.js";
 
 const app = express();
@@ -27,6 +29,41 @@ app.get("/health", (_req, res) => {
     service: "tkr-efatoura-api",
     timestamp: new Date().toISOString(),
   });
+});
+
+// Add global auth using token and inject the customer into the context
+declare global {
+  namespace Express {
+    interface Request {
+      context: { customer: TkrCustomers };
+    }
+  }
+}
+app.use(async (req: Request, res: Response, next: NextFunction) => {
+  if (req.path === "/health") return next();
+
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    return res
+      .status(401)
+      .json({ error: "UNAUTHORIZED", message: "Missing token" });
+  }
+
+  // Verify token and extract customer info
+  try {
+    // TODO: Implement token verification logic (e.g., JWT verification)
+    const { customer, error } = await verifyToken(token);
+    if (error || !customer) {
+      return res.status(401).json({ error, message: "Invalid token" });
+    }
+    req.context = { customer };
+    // Extend Express Request type to include customer
+
+    next();
+  } catch {
+    res.status(401).json({ error: "UNAUTHORIZED", message: "Invalid token" });
+  }
 });
 
 // API routes

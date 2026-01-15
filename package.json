@@ -27,6 +27,7 @@
     "kysely-postgres-js": "^3.0.0",
     "node-cron": "^4.2.1",
     "postgres": "^3.4.8",
+    "url-join": "^5.0.0",
     "uuid": "^13.0.0",
     "xml-crypto": "^6.1.2",
     "xmlbuilder2": "^4.0.3",

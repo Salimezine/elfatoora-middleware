@@ -4,7 +4,7 @@ import { suffix } from "../../db/client.js";
 import type { DB } from "../../db/schema.js";
 import type { Document } from "../../schemas/document.schema.js";
 
-export async function saveIncomingDocument(db: Kysely<DB>, input: Document) {
+export async function saveIncomingDocuments(db: Kysely<DB>, input: Document[]) {
   return db.transaction().execute(async (trx) => {
     /**
      * ------------------------------------------------------------------
@@ -12,33 +12,33 @@ export async function saveIncomingDocument(db: Kysely<DB>, input: Document) {
      * ------------------------------------------------------------------
      */
 
-    const document = await trx
+    const documents = await trx
       .insertInto(`${suffix}documents`)
-      .values({
-        external_document_id: input.header.documentNumber,
-        source_system: "api", // or input.source if available
+      .values(
+        input.map((doc) => ({
+          external_document_id: doc.header.documentNumber,
+          source_system: "api", // or doc.source if available
 
-        document_number: input.header.documentNumber,
-        document_type: "INVOICE",
-        issue_date: new Date(input.header.issueDate),
+          document_number: doc.header.documentNumber,
+          document_type: doc.header.type,
+          issue_date: new Date(doc.header.issueDate),
 
-        seller_tax_id: input.seller.identifier,
-        buyer_tax_id: input.buyer?.identifier ?? null,
+          seller_tax_id: doc.seller.identifier,
+          buyer_tax_id: doc.buyer?.identifier ?? null,
 
-        currency: input.totals.totalTTC.currency,
-        total_ht: input.totals.subtotalHT.amount.toString(),
-        total_tva: input.totals.totalTax.amount.toString(),
-        total_ttc: input.totals.totalTTC.amount.toString(),
+          currency: doc.totals.totalTTC.currency,
+          total_ht: doc.totals.subtotalHT.amount.toString(),
+          total_tva: doc.totals.totalTax.amount.toString(),
+          total_ttc: doc.totals.totalTTC.amount.toString(),
 
-        status: "RECEIVED",
+          status: "SIGNING_PENDING",
 
-        created_at: new Date(),
-        updated_at: new Date(),
-      })
-      .returning("id")
-      .executeTakeFirstOrThrow();
-
-    const documentId = document.id;
+          created_at: new Date(),
+          updated_at: new Date(),
+        }))
+      )
+      .returning(["id", "external_document_id as externalDocumentId"])
+      .execute();
 
     /**
      * ------------------------------------------------------------------
@@ -46,18 +46,19 @@ export async function saveIncomingDocument(db: Kysely<DB>, input: Document) {
      * ------------------------------------------------------------------
      */
 
+    const payloadInserts = documents.map((doc, index) => ({
+      document_id: doc.id,
+      payload: input[index],
+      payload_hash: crypto
+        .createHash("sha256")
+        .update(JSON.stringify(input[index]))
+        .digest("hex"),
+      schema_version: "v1",
+      created_at: new Date(),
+    }));
     await trx
       .insertInto(`${suffix}document_payloads`)
-      .values({
-        document_id: documentId,
-        payload: input,
-        payload_hash: crypto
-          .createHash("sha256")
-          .update(JSON.stringify(input))
-          .digest("hex"),
-        schema_version: "v1",
-        created_at: new Date(),
-      })
+      .values(payloadInserts)
       .execute();
 
     /**
@@ -65,21 +66,21 @@ export async function saveIncomingDocument(db: Kysely<DB>, input: Document) {
      * 3. Audit event
      * ------------------------------------------------------------------
      */
-
+    const insertEvents = documents.map((doc) => ({
+      document_id: doc.id,
+      event_type: "SIGNING_REQUESTED" as const,
+      from_status: "RECEIVED" as const,
+      to_status: "SIGNING_PENDING" as const,
+      metadata: {
+        source: "incoming-api",
+      },
+      created_at: new Date(),
+    }));
     await trx
       .insertInto(`${suffix}document_events`)
-      .values({
-        document_id: documentId,
-        event_type: "RECEIVED",
-        from_status: null,
-        to_status: "RECEIVED",
-        metadata: {
-          source: "incoming-api",
-        },
-        created_at: new Date(),
-      })
+      .values(insertEvents)
       .execute();
 
-    return documentId;
+    return documents;
   });
 }
