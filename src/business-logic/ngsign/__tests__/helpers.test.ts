@@ -1,14 +1,8 @@
 import assert from "assert";
-import { beforeEach, describe, it } from "node:test";
+import { describe, it } from "node:test";
 import { ngSignBase, ngSignUrls, toBase64 } from "../helpers";
 
 describe("ngsign helpers", () => {
-  const originalEnv = process.env;
-
-  beforeEach(() => {
-    process.env = { ...originalEnv };
-  });
-
   describe("ngSignUrls", () => {
     it("should have sandbox and production URLs", () => {
       assert.strictEqual(ngSignUrls.sandbox, "https://sandbox.ngsign.com");
@@ -18,7 +12,6 @@ describe("ngsign helpers", () => {
 
   describe("ngSignBase", () => {
     it("should return sandbox URL when MODE is TEST", () => {
-      process.env.MODE = "TEST";
       assert.strictEqual(
         ngSignBase("/auth"),
         "https://sandbox.ngsign.com/auth"
@@ -26,12 +19,13 @@ describe("ngsign helpers", () => {
     });
 
     it("should return production URL when MODE is PROD", () => {
-      process.env.MODE = "PROD";
-      assert.strictEqual(ngSignBase("/auth"), "https://api.ngsign.com/auth");
+      assert.strictEqual(
+        ngSignBase("/auth", "PROD"),
+        "https://api.ngsign.com/auth"
+      );
     });
 
     it("should default to sandbox when MODE is not set", () => {
-      delete process.env.MODE;
       assert.strictEqual(
         ngSignBase("/test"),
         "https://sandbox.ngsign.com/test"
