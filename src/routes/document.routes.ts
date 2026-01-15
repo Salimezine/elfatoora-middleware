@@ -67,7 +67,7 @@ documentsRouter.post(
       }
 
       // Persist initial invoice state (RECEIVED)
-      await saveIncomingDocuments(
+      const savedDocs = await saveIncomingDocuments(
         db,
         payload.data.map((d) => d.invoice)
       );
@@ -93,6 +93,24 @@ documentsRouter.post(
         req.context.customer.ngsign_token,
         req.context.customer.mode
       );
+
+      // Save UUID mapping to DB
+      const cbData = savedDocs.map((item) => ({
+        uuid: signResponse.uuid,
+        document_id: item.id,
+        customer_id: req.context.customer.id as unknown as string,
+        success_callback_url:
+          payload.successUrl || req.context.customer.default_success_url || "",
+        failure_callback_url:
+          payload.failureUrl || req.context.customer.default_failure_url || "",
+        status: "PENDING" as const,
+        created_at: new Date(),
+        updated_at: new Date(),
+      }));
+      await db
+        .insertInto("tbl_tkr_signature_callback")
+        .values(cbData)
+        .execute();
 
       res.status(202).json({
         message: "Invoice accepted for signing, please redirect user to sign.",

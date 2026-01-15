@@ -153,6 +153,17 @@ export interface TkrCustomersTokens {
   updated_at: Date;
 }
 
+export interface TkrSignatureCallbackTable {
+  uuid: string;
+  document_id: string;
+  customer_id: string;
+  success_callback_url: string;
+  failure_callback_url: string;
+  status: "PENDING" | "COMPLETED" | "FAILED";
+  created_at: Date;
+  updated_at: Date;
+}
+
 /**
  * ---------------------------------------------------------------------
  * Database mapping (suffix-aware)
@@ -173,6 +184,8 @@ type Tables<P extends string> = {
   [K in `${P}tkr_customers`]: TkrCustomers;
 } & {
   [K in `${P}tkr_customer_tokens`]: TkrCustomersTokens;
+} & {
+  [K in `${P}tkr_signature_callback`]: TkrSignatureCallbackTable;
 };
 
 export type DB = Tables<typeof suffix>;
