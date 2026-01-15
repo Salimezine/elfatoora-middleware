@@ -5,6 +5,7 @@ import type {
   Response,
 } from "express";
 import { Router } from "express";
+import type { ControlledTransaction } from "kysely";
 import z from "zod";
 import { saveIncomingDocuments } from "../business-logic/document/save-incoming-document.js";
 import {
@@ -14,6 +15,7 @@ import {
 import { mapInvoiceToTeifXml } from "../business-logic/teif/map-json-to-teif.js";
 import { buildTeifXml } from "../business-logic/teif/teif-xml-builder.js";
 import { db } from "../db/client.js";
+import type { DB } from "../db/schema.js";
 import { DocumentSchema } from "../schemas/document.schema.js";
 
 export const documentsRouter: ExpressRouter = Router();
@@ -33,13 +35,14 @@ const DocumentsApiSchema = z.object({
 
 /**
  * ---------------------------------------------------------------------
- * POST /v1/invoices
- * Create a new invoice (async workflow)
+ * POST /v1/documents
+ * Create and sign new documents
  * ---------------------------------------------------------------------
  */
 documentsRouter.post(
   "/",
   async (req: Request, res: Response, next: NextFunction) => {
+    let trx: ControlledTransaction<DB, []> | null = null;
     try {
       // 1. Validate payload with Zod
       const payload = DocumentsApiSchema.parse(req.body);
@@ -67,8 +70,9 @@ documentsRouter.post(
       }
 
       // Persist initial invoice state (RECEIVED)
+      trx = await db.startTransaction().execute();
       const savedDocs = await saveIncomingDocuments(
-        db,
+        trx,
         payload.data.map((d) => d.invoice)
       );
 
@@ -107,10 +111,12 @@ documentsRouter.post(
         created_at: new Date(),
         updated_at: new Date(),
       }));
-      await db
+      await trx
         .insertInto("tbl_tkr_signature_callback")
         .values(cbData)
         .execute();
+
+      await trx.commit().execute();
 
       res.status(202).json({
         message: "Invoice accepted for signing, please redirect user to sign.",
@@ -118,33 +124,7 @@ documentsRouter.post(
         signatureUrl: signResponse.url,
       });
     } catch (err) {
-      next(err);
-    }
-  }
-);
-
-/**
- * ---------------------------------------------------------------------
- * GET /v1/invoices/:id/status
- * Retrieve invoice processing status
- * ---------------------------------------------------------------------
- */
-documentsRouter.get(
-  "/:id/status",
-  async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const { id } = req.params;
-
-      // TODO:
-      // 1. Load invoice state from persistence
-      // 2. If PENDING, optionally trigger a poll
-      // 3. Return normalized status
-
-      res.status(200).json({
-        id,
-        status: "PENDING",
-      });
-    } catch (err) {
+      if (trx) await trx.rollback().execute();
       next(err);
     }
   }
