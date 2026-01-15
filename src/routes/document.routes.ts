@@ -95,7 +95,7 @@ documentsRouter.post(
       );
 
       res.status(202).json({
-        message: "Invoice accepted for processing",
+        message: "Invoice accepted for signing, please redirect user to sign.",
         signatureUUID: signResponse.uuid,
         signatureUrl: signResponse.url,
       });
