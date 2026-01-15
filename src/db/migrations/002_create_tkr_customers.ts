@@ -16,7 +16,7 @@ export async function up(db: Kysely<any>): Promise<void> {
     )
     .addColumn("name", "text", (col) => col.notNull())
     .addColumn("tax_id", "text", (col) => col.notNull())
-    .addColumn("mode", sql`${suffix}tkr_customer_mode`, (col) =>
+    .addColumn("mode", sql`${sql.raw(`${suffix}tkr_customer_mode`)}`, (col) =>
       col.notNull().defaultTo("TEST")
     )
     .addColumn("ngsign_token", "text", (col) => col.notNull())
