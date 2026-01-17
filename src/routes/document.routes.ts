@@ -20,13 +20,28 @@ import { DocumentSchema } from "../schemas/document.schema.js";
 
 export const documentsRouter: ExpressRouter = Router();
 
+/**
+ * Schema for the Documents API request payload.
+ *
+ * @typedef {Object} DocumentsApiSchema
+ * @property {Array<Object>} data - Array of document objects to process (minimum 1 item required)
+ * @property {DocumentSchema} data[].invoice - The embedded invoice document containing transaction details
+ * @property {string} data[].pdf - Base64 encoded PDF string. This PDF is intended solely for display purposes to the user on signage and is not used for processing or verification.
+ * @property {URL | null} successUrl - Optional URL to redirect to upon successful document processing. Must be a valid URL if provided.
+ * @property {URL | null} failureUrl - Optional URL to redirect to upon failed document processing. Must be a valid URL if provided.
+ */
 const DocumentsApiSchema = z.object({
   data: z
     .array(
       z.object({
         invoice: DocumentSchema, // embedded document
+        /**
+         * Base64 encoded PDF string.
+         * This PDF is intended solely for display purposes to the user on signage
+         * and is not used for processing or verification.
+         **/
         pdf: z.string().min(1), // base64 encoded PDF
-      })
+      }),
     )
     .min(1),
   successUrl: z.url().nullable(), // success URL can be null and must be a valid URL
@@ -57,6 +72,7 @@ documentsRouter.post(
             signatureUUID: null,
             signatureUrl: null,
           });
+          return;
         }
 
         // Map JSON → TEIF XML
@@ -73,7 +89,7 @@ documentsRouter.post(
       trx = await db.startTransaction().execute();
       const savedDocs = await saveIncomingDocuments(
         trx,
-        payload.data.map((d) => d.invoice)
+        payload.data.map((d) => d.invoice),
       );
 
       // 4. Validate TEIF against XSD - TODO
@@ -95,7 +111,7 @@ documentsRouter.post(
           },
         },
         req.context.customer.ngsign_token,
-        req.context.customer.mode
+        req.context.customer.mode,
       );
 
       // Save UUID mapping to DB
@@ -127,7 +143,7 @@ documentsRouter.post(
       if (trx) await trx.rollback().execute();
       next(err);
     }
-  }
+  },
 );
 
 /**
@@ -176,5 +192,5 @@ documentsRouter.get(
     } catch (err) {
       next(err);
     }
-  }
+  },
 );

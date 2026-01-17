@@ -1,11 +1,19 @@
 import { ngSignBase, ngsignFetch, toBase64 } from "./helpers.js";
+import type {
+  CreateInvoiceTransactionResponse,
+  NGXMLCreationInvoiceUpload,
+} from "./ngsign-api.js";
 
 // Input types
 
 export type CreateSignatureTransactionInput = {
   invoices: {
     teifXmlContent: string;
-    /** In base64 */
+    /**
+     * Base64 encoded PDF string.
+     * This PDF is intended solely for display purposes to the user on signage
+     * and is not used for processing or verification.
+     **/
     pdfContent: string;
     invoiceNumber: string;
     callbackUrl?: { successUrl?: string; failureUrl?: string };
@@ -20,6 +28,11 @@ export type CreateTransactionPayload = {
 };
 
 export type Invoice = {
+  /**
+   * Base64 encoded PDF string.
+   * This PDF is intended solely for display purposes to the user on signage
+   * and is not used for processing or verification.
+   **/
   invoiceFileB64: string;
   invoiceTIEF: string;
   clientEmail?: string;
@@ -27,64 +40,12 @@ export type Invoice = {
   invoiceNumber: string;
 };
 
-// Response types
-
-export type CreateTransactionApiResponse = {
-  object: {
-    uuid: string;
-    invoices: SignedInvoice[];
-    creationDate: string; // ISO date
-    status: string;
-    digestAlgo: string;
-    signingTime: string; // ISO date
-    creator: Person;
-    user: Person;
-    organization: Organization;
-    deleterId: Person;
-    deleteDate: string; // ISO date
-    deleted: boolean;
-    locked: boolean;
-    bySeal: boolean;
-    bySealV2: boolean;
-    wsOnlyCreation: boolean;
-  };
-  message: string;
-  errorCode: number;
-};
-
-export type SignedInvoice = {
-  status: string;
-  uuid: string;
-  clientEmail: string;
-  ttnReference: string;
-  ttnErrorMessage: string;
-  invoiceNumber: string;
-  invoiceDate: string; // ISO date
-  withPDF: boolean;
-  twoDocImage: string;
-  callbackUrl: { successUrl: string; failureUrl: string };
-  fileSize: number;
-};
-
-type Person = {
-  email: string;
-  firstName: string;
-  lastName: string;
-  additionalProp1: Record<string, unknown>;
-};
-
-type Organization = {
-  name: string;
-  id: string;
-  additionalProp1: Record<string, unknown>;
-};
-
 export async function createSignatureTransaction(
   input: CreateSignatureTransactionInput,
   ngSignToken: string,
-  mode: "PROD" | "TEST" = "TEST"
+  mode: "PROD" | "TEST" = "TEST",
 ) {
-  const payload: CreateTransactionPayload = {
+  const payload: NGXMLCreationInvoiceUpload = {
     invoices: input.invoices.map((inv) => {
       const xmlBuffer = Buffer.from(inv.teifXmlContent, "base64");
       return {
@@ -102,19 +63,19 @@ export async function createSignatureTransaction(
     signerEmail: input.signerEmail,
   };
 
-  const response = await ngsignFetch<CreateTransactionApiResponse>(
+  const response = await ngsignFetch<CreateInvoiceTransactionResponse>(
     "/protected/invoice/xml/transaction/create",
     ngSignToken,
     {
       method: "POST",
       body: JSON.stringify(payload),
     },
-    mode
+    mode,
   );
 
-  if (!response.object) {
+  if (!response.object?.uuid) {
     throw new Error(
-      `NGSign create transaction failed: ${response.message} (code: ${response.errorCode})`
+      `NGSign create transaction failed: ${response.message} (code: ${response.errorCode})`,
     );
   }
 

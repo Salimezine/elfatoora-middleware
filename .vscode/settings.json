@@ -9,6 +9,13 @@
       "mode": "auto"
     }
   ],
-  "cSpell.words": ["exiry", "kysely", "NGSIGN", "TEIF", "TIEF"],
+  "cSpell.words": [
+    "exiry",
+    "kysely",
+    "NGSIGN",
+    "NGXML",
+    "TEIF",
+    "TIEF"
+  ],
   "typescript.tsdk": "node_modules/typescript/lib"
 }
