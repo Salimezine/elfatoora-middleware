@@ -8,6 +8,6 @@ import {
 const documentsRouter: ExpressRouter = Router();
 
 documentsRouter.post("/", createDocuments);
-documentsRouter.get("/callback/:status", documentsCallback);
+documentsRouter.post("/callback/:status", documentsCallback);
 
 export default documentsRouter;
