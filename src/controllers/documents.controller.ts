@@ -236,3 +236,50 @@ export async function documentsCallback(
     next(err);
   }
 }
+
+/**
+ * GET /v1/documents/status/:invoiceNumber
+ */
+export async function getDocumentStatus(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { invoiceNumber } = z
+      .object({ invoiceNumber: z.string().min(1) })
+      .parse(req.params);
+
+    const customerId = req.context.customer.id as unknown as string;
+
+    // Get the document status
+    const document = await db
+      .selectFrom(tbl("documents"))
+      .leftJoin(
+        tbl("operations"),
+        `${tbl("documents")}.operation_id`,
+        `${tbl("operations")}.id`,
+      )
+      .select([
+        `${tbl("documents")}.document_number`,
+        `${tbl("documents")}.status`,
+      ])
+      .where(`${tbl("operations")}.customer_id`, "=", customerId)
+      .where(`${tbl("documents")}.document_number`, "=", invoiceNumber)
+      .executeTakeFirst();
+
+    if (!document) {
+      res.status(404).json({
+        message: `Document with invoice number ${invoiceNumber} not found for the given operation.`,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      invoiceNumber: document.document_number,
+      status: document.status,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
