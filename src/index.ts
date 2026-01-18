@@ -1,10 +1,14 @@
 import "dotenv/config";
+
 import type { NextFunction, Request, Response } from "express";
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { verifyToken } from "./business-logic/auth/token.js";
 import type { TkrCustomers } from "./db/schema.js";
 import { router } from "./routes/index.js";
+import { validateRequiredEnvVars } from "./utils/env.utils.js";
+
+validateRequiredEnvVars();
 
 const app = express();
 

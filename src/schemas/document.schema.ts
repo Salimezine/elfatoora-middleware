@@ -42,7 +42,7 @@ type IdentifierType = "FISCAL_ID" | "CIN" | "RESIDENCE_CARD";
 
 function validateIdentifier(
   identifier: string,
-  type: IdentifierType
+  type: IdentifierType,
 ): string | null {
   if (type === "FISCAL_ID" && !FISCAL_ID_REGEX.test(identifier)) {
     return "Invalid Tunisian fiscal identifier format";
@@ -238,7 +238,7 @@ export const DocumentSchema = z
         code: "custom",
         path: ["totals", "totalTTC", "amount"],
         message: `Total TTC mismatch: expected ${round(
-          expectedTTC
+          expectedTTC,
         )}, got ${data.totals.totalTTC.amount}`,
       });
     }

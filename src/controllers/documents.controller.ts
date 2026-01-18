@@ -1,0 +1,200 @@
+import type { NextFunction, Request, Response } from "express";
+import z from "zod";
+import {
+  createIncomingDocumentsTransaction,
+  saveIncomingDocumentArtifact,
+  saveIncomingDocuments,
+  setNGSignUUID,
+  type SaveIncomingDocumentArtifactItem,
+} from "../business-logic/document/incoming-documents.js";
+import {
+  createSignatureTransaction,
+  type CreateSignatureTransactionInput,
+} from "../business-logic/ngsign/create-transaction.js";
+import type { WebhookPayload } from "../business-logic/ngsign/ngsign-api.js";
+import { mapInvoiceToTeifXml } from "../business-logic/teif/map-json-to-teif.js";
+import { buildTeifXml } from "../business-logic/teif/teif-xml-builder.js";
+import { db, tbl } from "../db/client.js";
+import { DocumentSchema } from "../schemas/document.schema.js";
+import { publicUrl } from "../utils/env.utils.js";
+
+/**
+ * Request payload schema
+ */
+export const DocumentsApiSchema = z.object({
+  data: z
+    .array(z.object({ invoice: DocumentSchema, pdf: z.string().min(1) }))
+    .min(1),
+  successUrl: z.url().nullable(),
+  failureUrl: z.url().nullable(),
+});
+
+/**
+ * POST /v1/documents
+ */
+export async function createDocuments(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  let opId: string | null = null;
+
+  try {
+    const payload = DocumentsApiSchema.parse(req.body);
+
+    // Create a transaction
+    opId = await createIncomingDocumentsTransaction(
+      db,
+      req.context.customer.id as unknown as string,
+      payload.successUrl || req.context.customer.default_success_url || "",
+      payload.failureUrl || req.context.customer.default_failure_url || "",
+    );
+
+    if (!opId) {
+      throw new Error("Failed to create operation for incoming documents");
+    }
+
+    // Save incoming documents
+    const savedDocs = await saveIncomingDocuments(
+      db,
+      payload.data.map((d) => d.invoice),
+      opId,
+      "API",
+    );
+
+    // Prepare invoices for signing
+    const invoices: CreateSignatureTransactionInput["invoices"] = [];
+    for (const item of payload.data) {
+      if (item.invoice.seller.identifier !== req.context.customer.tax_id) {
+        res.status(403).json({
+          message: `Invoice issuer tax ID ${item.invoice.seller.identifier} does not match authenticated customer ${req.context.customer.tax_id}`,
+          signatureUUID: null,
+          signatureUrl: null,
+        });
+        return;
+      }
+
+      const teifObject = mapInvoiceToTeifXml(item.invoice);
+      const teifXml = buildTeifXml(teifObject);
+
+      invoices.push({
+        invoiceNumber: item.invoice.header.documentNumber,
+        pdfContent: item.pdf,
+        teifXmlContent: teifXml,
+      });
+    }
+
+    // Save TEIF artifacts
+    const artifacts: SaveIncomingDocumentArtifactItem[] = [];
+    for (const inv of invoices) {
+      const doc = savedDocs.find((d) => d.documentNumber === inv.invoiceNumber);
+      if (!doc) {
+        throw new Error(
+          `Saved document not found for invoice number ${inv.invoiceNumber}`,
+        );
+      }
+      artifacts.push({
+        operationId: opId!,
+        documentId: doc.id,
+        teifXmlContent: inv.teifXmlContent,
+      });
+    }
+    await saveIncomingDocumentArtifact(db, artifacts);
+
+    // Generate internal callback URLs and store callback records
+    const hash = Buffer.from(opId).toString("base64");
+    const signResponse = await createSignatureTransaction(
+      {
+        invoices,
+        signerEmail: req.context.customer.ngsign_signer_email,
+        callbackUrl: {
+          successUrl: publicUrl(`/v1/documents/callback/success?hash=${hash}`),
+          failureUrl: publicUrl(`/v1/documents/callback/failure?hash=${hash}`),
+        },
+      },
+      req.context.customer.ngsign_token,
+      req.context.customer.mode,
+    );
+    await setNGSignUUID(db, opId, signResponse.uuid);
+
+    res.status(202).json({
+      message: "Invoice accepted for signing, please redirect user to sign.",
+      signatureUUID: signResponse.uuid,
+      signatureUrl: signResponse.url,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * POST /v1/documents/callback/:status
+ * if status is 'success', NGSign will post WebhookPayload to this endpoint
+ */
+export async function documentsCallback(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { hash } = req.query;
+
+    const status = z.enum(["success", "failure"]).safeParse(req.params.status);
+
+    if (!status.success) {
+      res.status(400).json({
+        message: "Status must be either 'success' or 'failure'",
+      });
+      return;
+    }
+
+    if (!hash || typeof hash !== "string") {
+      res.status(400).json({
+        message: "Missing or invalid hash parameter",
+      });
+      return;
+    }
+
+    const operationId = Buffer.from(hash, "base64").toString("utf-8");
+
+    // Get the operation to find NGSign UUID
+    const operation = await db
+      .selectFrom(tbl("operations"))
+      .selectAll()
+      .where("id", "=", operationId)
+      .executeTakeFirst();
+
+    if (status.data === "failure") {
+      await db.transaction().execute(async (trx) => {
+        // Save operation as failed
+        await trx
+          .updateTable(tbl("operations"))
+          .set({ status: "FAILED", updated_at: new Date() })
+          .where("id", "=", operationId)
+          .execute();
+        await trx
+          .updateTable(tbl("documents"))
+          .set({ status: "SIGNING_FAILED", updated_at: new Date() })
+          .where("operation_id", "=", operationId)
+          .execute();
+      });
+      // Redirect to failure URL
+      const url =
+        operation?.failure_callback_url ||
+        req.context.customer.default_failure_url;
+      if (!url) {
+        res.status(200).json({ message: "Operation marked as failed." });
+        return;
+      }
+      res.redirect(url);
+      return;
+    }
+
+    const payload = req.body as WebhookPayload;
+
+    // TODO: lookup callback, update status, redirect
+    res.status(204).end();
+  } catch (err) {
+    next(err);
+  }
+}

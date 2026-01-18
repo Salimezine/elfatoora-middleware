@@ -1,11 +1,9 @@
 import type { Generated } from "kysely";
 import type { suffix } from "./client.js";
 
-/**
- * ---------------------------------------------------------------------
- * Enums (TypeScript mirrors of PostgreSQL enums)
- * ---------------------------------------------------------------------
- */
+export type DateOnly = `${number}-${number}-${number}`;
+
+// Enums (TypeScript mirrors of PostgreSQL enums)
 
 export type DocumentStatus =
   | "RECEIVED"
@@ -37,49 +35,57 @@ export type DocumentEventType =
   | "RETRIED"
   | "STATUS_CHANGED";
 
-export type SubmissionStatus = "SENT" | "ACCEPTED" | "REJECTED" | "TIMEOUT";
+// Tables
 
 /**
- * ---------------------------------------------------------------------
- * Tables
- * ---------------------------------------------------------------------
+ * Operations Table, each operation can contain multiple documents
  */
+export interface Operation {
+  /** Primary key, UUID */
+  id: string;
+  /** NGSign UUID, unique */
+  ngsign_uuid: string | null;
+  customer_id: string;
+  success_callback_url: string;
+  failure_callback_url: string;
+  status: "PENDING" | "COMPLETED" | "FAILED";
+  created_at: Date;
+  updated_at: Date;
+}
 
-export interface DocumentsTable {
-  id: Generated<string>;
-
-  external_document_id: string;
+export interface Document {
+  /** Primary key, UUID */
+  id: string;
+  /** Operation UUID, an operation can contain multiple documents */
+  operation_id: string;
   source_system: string;
 
   document_number: string;
   document_type: DocumentType;
-  issue_date: Date;
+  issue_date: DateOnly;
 
   seller_tax_id: string;
   buyer_tax_id: string | null;
 
   currency: string; // CHAR(3)
-  total_ht: string; // numeric → string
-  total_tva: string; // numeric → string
-  total_ttc: string; // numeric → string
+  total_ht: number;
+  total_tva: number;
+  total_ttc: number;
 
   status: DocumentStatus;
+
+  /** Big text containing the original json payload */
+  payload: unknown;
+  payload_hash: string;
+  /** This API version of the schema used to validate the payload */
+  schema_version: string | null;
 
   created_at: Date;
   updated_at: Date;
 }
 
-export interface DocumentPayloadsTable {
-  document_id: string;
-
-  payload: unknown;
-  payload_hash: string;
-  schema_version: string | null;
-
-  created_at: Date;
-}
-
-export interface DocumentArtifactsTable {
+export interface DocumentArtifact {
+  /** Primary key, UUID, document.id */
   document_id: string;
 
   teif_xml: string;
@@ -94,27 +100,9 @@ export interface DocumentArtifactsTable {
   generated_at: Date;
 }
 
-export interface InvoiceSubmissionsTable {
-  id: Generated<string>;
-
-  document_id: string;
-
-  authority: string;
-  request_payload: unknown | null;
-  response_payload: unknown | null;
-
-  authority_uuid: string | null;
-  status: SubmissionStatus;
-
-  error_code: string | null;
-  error_message: string | null;
-
-  attempt: number;
-  submitted_at: Date;
-}
-
-export interface DocumentEventsTable {
-  id: Generated<string>;
+export interface DocumentEvent {
+  /** Primary key, UUID */
+  id: string;
 
   document_id: string;
 
@@ -153,39 +141,24 @@ export interface TkrCustomersTokens {
   updated_at: Date;
 }
 
-export interface TkrSignatureCallbackTable {
-  uuid: string;
-  document_id: string;
-  customer_id: string;
-  success_callback_url: string;
-  failure_callback_url: string;
-  status: "PENDING" | "COMPLETED" | "FAILED";
-  created_at: Date;
-  updated_at: Date;
-}
-
 /**
  * ---------------------------------------------------------------------
  * Database mapping (suffix-aware)
  * ---------------------------------------------------------------------
  */
 
-type Tables<P extends string> = {
-  [K in `${P}documents`]: DocumentsTable;
+export type Tables<P extends string> = {
+  [K in `${P}operations`]: Operation;
 } & {
-  [K in `${P}document_payloads`]: DocumentPayloadsTable;
+  [K in `${P}documents`]: Document;
 } & {
-  [K in `${P}document_artifacts`]: DocumentArtifactsTable;
+  [K in `${P}documents_artifacts`]: DocumentArtifact;
 } & {
-  [K in `${P}invoice_submissions`]: InvoiceSubmissionsTable;
-} & {
-  [K in `${P}document_events`]: DocumentEventsTable;
+  [K in `${P}documents_events`]: DocumentEvent;
 } & {
   [K in `${P}tkr_customers`]: TkrCustomers;
 } & {
   [K in `${P}tkr_customer_tokens`]: TkrCustomersTokens;
-} & {
-  [K in `${P}tkr_signature_callback`]: TkrSignatureCallbackTable;
 };
 
 export type DB = Tables<typeof suffix>;
