@@ -8,7 +8,6 @@ export type DateOnly = `${number}-${number}-${number}`;
 export type DocumentStatus =
   | "RECEIVED"
   | "SIGNING_PENDING"
-  | "SIGNED"
   | "SIGNING_FAILED"
   | "TTN_PENDING"
   | "TTN_SUBMITTED"

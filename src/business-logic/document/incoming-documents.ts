@@ -1,7 +1,12 @@
-import { Kysely } from "kysely";
+import { ControlledTransaction, Kysely } from "kysely";
 import crypto from "node:crypto";
 import { tbl } from "../../db/client.js";
-import type { DateOnly, DB, DocumentEvent } from "../../db/schema.js";
+import type {
+  DateOnly,
+  DB,
+  DocumentEvent,
+  DocumentStatus,
+} from "../../db/schema.js";
 import type { Document } from "../../schemas/document.schema.js";
 
 export async function createIncomingDocumentsTransaction(
@@ -163,5 +168,68 @@ export async function setNGSignUUID(
       updated_at: new Date(),
     })
     .where("id", "=", operationId)
+    .execute();
+}
+
+export async function updateDocumentStatus(
+  db: Kysely<DB> | ControlledTransaction<DB, []>,
+  documentId: string,
+  status: DocumentStatus,
+) {
+  await db
+    .updateTable(tbl("documents"))
+    .set({
+      status,
+      updated_at: new Date(),
+    })
+    .where("id", "=", documentId)
+    .execute();
+}
+
+export async function savedDocAfterSign(
+  trx: ControlledTransaction<DB, []>,
+  operationId: string,
+  invoiceNumber: string,
+  xmlBase64: string,
+) {
+  if (!xmlBase64) {
+    const e = `Missing xmlBase64 in webhook payload for operation ID ${operationId}`;
+    throw new Error(e);
+  }
+  // Find document by operation ID and invoice number
+  const document = await trx
+    .selectFrom(tbl("documents"))
+    .select(["id", "document_number"])
+    .where("operation_id", "=", operationId)
+    .where("document_number", "=", invoiceNumber!)
+    .executeTakeFirst();
+  if (!document) {
+    const e = `Document not found for operation ID ${operationId} and invoice number ${invoiceNumber}`;
+    throw new Error(e);
+  }
+  // Update document artifact with signed TEIF XML
+  await trx
+    .updateTable(tbl("documents_artifacts"))
+    .set({
+      teif_xml: xmlBase64,
+      xml_hash: crypto.createHash("sha256").update(xmlBase64).digest("hex"),
+      certificate_issuer: "NGSign",
+      signed_at: new Date(),
+    })
+    .where("document_id", "=", document.id)
+    .execute();
+
+  // Save the signature event
+  await trx
+    .insertInto(tbl("documents_events"))
+    .values({
+      id: crypto.randomUUID(),
+      document_id: document.id,
+      event_type: "SIGNED",
+      from_status: "SIGNING_PENDING",
+      to_status: "TTN_PENDING",
+      metadata: null,
+      created_at: new Date(),
+    })
     .execute();
 }

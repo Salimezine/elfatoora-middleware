@@ -1,10 +1,13 @@
 import type { NextFunction, Request, Response } from "express";
+import type { ControlledTransaction } from "kysely";
 import z from "zod";
 import {
   createIncomingDocumentsTransaction,
+  savedDocAfterSign,
   saveIncomingDocumentArtifact,
   saveIncomingDocuments,
   setNGSignUUID,
+  updateDocumentStatus,
   type SaveIncomingDocumentArtifactItem,
 } from "../business-logic/document/incoming-documents.js";
 import {
@@ -15,6 +18,7 @@ import type { WebhookPayload } from "../business-logic/ngsign/ngsign-api.js";
 import { mapInvoiceToTeifXml } from "../business-logic/teif/map-json-to-teif.js";
 import { buildTeifXml } from "../business-logic/teif/teif-xml-builder.js";
 import { db, tbl } from "../db/client.js";
+import type { DB } from "../db/schema.js";
 import { DocumentSchema } from "../schemas/document.schema.js";
 import { publicUrl } from "../utils/env.utils.js";
 
@@ -136,6 +140,7 @@ export async function documentsCallback(
   res: Response,
   next: NextFunction,
 ) {
+  let trx: ControlledTransaction<DB, []> | null = null;
   try {
     const { hash } = req.query;
 
@@ -190,11 +195,44 @@ export async function documentsCallback(
       return;
     }
 
-    const payload = req.body as WebhookPayload;
+    const payload = req.body as WebhookPayload[];
 
-    // TODO: lookup callback, update status, redirect
-    res.status(204).end();
+    trx = await db.startTransaction().execute();
+
+    // Update documents status to TTN_PENDING
+    await updateDocumentStatus(trx, operationId, "TTN_PENDING");
+
+    // Loop through payload and update document artifacts
+    for (const item of payload) {
+      if (!item.xmlBase64) {
+        const e = `Missing xmlBase64 in webhook payload for operation ID ${operationId}`;
+        throw new Error(e);
+      }
+      if (!item.invoiceNumber) {
+        const e = `Missing invoiceNumber in webhook payload for operation ID ${operationId}`;
+        throw new Error(e);
+      }
+      await savedDocAfterSign(
+        trx,
+        operationId,
+        item.invoiceNumber,
+        item.xmlBase64,
+      );
+    }
+
+    await trx.commit().execute();
+
+    // Redirect to success URL
+    const url =
+      operation?.success_callback_url ||
+      req.context.customer.default_success_url;
+    if (!url) {
+      res.status(200).json({ message: "Operation marked as successful." });
+      return;
+    }
+    res.redirect(url);
   } catch (err) {
+    if (trx) await trx.rollback().execute();
     next(err);
   }
 }
