@@ -41,7 +41,6 @@ describe("consultDocument", () => {
       new Response(mockResponse, { status: 200, statusText: "OK" });
 
     const result = await consultDocument("DOC001", mockCredentials);
-    console.log(result);
     assert.strictEqual(result.success, true);
     assert.ok("item" in result && result.item);
   });
