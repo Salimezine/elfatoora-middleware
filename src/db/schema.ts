@@ -100,6 +100,7 @@ export interface DocumentArtifact {
 
   /** TTN reference from the TTN submission */
   ttn_reference: string | null;
+  qr_code_base64: string | null;
 }
 
 export interface DocumentEvent {
