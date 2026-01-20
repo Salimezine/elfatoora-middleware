@@ -1,0 +1,629 @@
+openapi: 3.0.0
+info:
+  title: ElfatOOra API
+  description: A middleware API for TEIF electronic invoicing. Provides JSON validation, TEIF XML generation, digital signing via ngsign, TTN submission, status polling, and webhook integration for third-party invoicing systems.
+  version: 0.1.0
+  contact:
+    name: API Support
+  license:
+    name: Proprietary
+
+servers:
+  - url: http://localhost:3000/v1
+    description: Development server
+  - url: https://api.yourdomain.tn/v1
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authentication
+
+  schemas:
+    Money:
+      type: object
+      required:
+        - amount
+      properties:
+        amount:
+          type: number
+          format: double
+          minimum: 0
+        currency:
+          type: string
+          minLength: 3
+          maxLength: 3
+          default: TND
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+          maxLength: 100
+        city:
+          type: string
+          maxLength: 100
+        postalCode:
+          type: string
+          maxLength: 20
+        country:
+          type: string
+          minLength: 2
+          maxLength: 2
+          default: TN
+
+    Party:
+      type: object
+      required:
+        - identifier
+        - identifierType
+        - name
+      properties:
+        identifier:
+          type: string
+          minLength: 3
+          maxLength: 35
+          description: Fiscal ID, CIN, or Residence Card number
+          example: "1234567AAM000"
+        identifierType:
+          type: string
+          enum:
+            - FISCAL_ID
+            - CIN
+            - RESIDENCE_CARD
+          description: Type of identifier
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: "ACME Corporation"
+        address:
+          $ref: "#/components/schemas/Address"
+        contact:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+            phone:
+              type: string
+              maxLength: 20
+
+    DeliveryLocation:
+      type: object
+      required:
+        - address
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        address:
+          $ref: "#/components/schemas/Address"
+
+    DocumentLine:
+      type: object
+      required:
+        - lineNumber
+        - description
+        - quantity
+        - unitPrice
+        - taxRate
+      properties:
+        lineNumber:
+          type: integer
+          minimum: 1
+          description: Line item number
+        description:
+          type: string
+          minLength: 1
+          maxLength: 500
+          example: "Product or service description"
+        quantity:
+          type: number
+          format: double
+          minimum: 0
+          exclusiveMinimum: true
+        unitPrice:
+          $ref: "#/components/schemas/Money"
+        taxRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Tax rate as percentage (e.g., 19 for 19% VAT)
+        discountRate:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 100
+          description: Discount rate as percentage (optional)
+
+    DocumentTotals:
+      type: object
+      required:
+        - subtotalHT
+        - totalTax
+        - totalTTC
+      properties:
+        subtotalHT:
+          $ref: "#/components/schemas/Money"
+          description: Subtotal excluding taxes
+        totalTax:
+          $ref: "#/components/schemas/Money"
+          description: Total tax amount
+        totalTTC:
+          $ref: "#/components/schemas/Money"
+          description: Total including taxes (TTC)
+
+    PaymentTerms:
+      type: object
+      required:
+        - method
+        - dueDate
+      properties:
+        method:
+          type: string
+          enum:
+            - CASH
+            - BANK_TRANSFER
+            - CHEQUE
+        dueDate:
+          type: string
+          format: date
+        iban:
+          type: string
+          description: International Bank Account Number (for BANK_TRANSFER)
+        bankName:
+          type: string
+          description: Bank name (for BANK_TRANSFER)
+
+    DocumentAllowance:
+      type: object
+      required:
+        - type
+        - amount
+      properties:
+        type:
+          type: string
+          enum:
+            - DISCOUNT
+            - SURCHARGE
+            - WITHHOLDING
+        amount:
+          $ref: "#/components/schemas/Money"
+        description:
+          type: string
+          maxLength: 500
+
+    AdditionalDocument:
+      type: object
+      required:
+        - reference
+      properties:
+        reference:
+          type: string
+          minLength: 1
+          maxLength: 70
+        name:
+          type: string
+          maxLength: 200
+        date:
+          type: string
+          format: date
+
+    DocumentHeader:
+      type: object
+      required:
+        - documentNumber
+        - issueDate
+      properties:
+        documentNumber:
+          type: string
+          minLength: 1
+          maxLength: 70
+          example: "INV-2026-001"
+        issueDate:
+          type: string
+          format: date
+        type:
+          type: string
+          enum:
+            - INVOICE
+            - CREDIT_NOTE
+            - DEBIT_NOTE
+          default: INVOICE
+
+    Document:
+      type: object
+      required:
+        - header
+        - seller
+        - buyer
+        - lines
+        - totals
+      properties:
+        header:
+          $ref: "#/components/schemas/DocumentHeader"
+        seller:
+          $ref: "#/components/schemas/Party"
+        buyer:
+          $ref: "#/components/schemas/Party"
+        deliveryLocation:
+          $ref: "#/components/schemas/DeliveryLocation"
+        lines:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/DocumentLine"
+        totals:
+          $ref: "#/components/schemas/DocumentTotals"
+        paymentTerms:
+          $ref: "#/components/schemas/PaymentTerms"
+        allowances:
+          type: array
+          items:
+            $ref: "#/components/schemas/DocumentAllowance"
+        additionalDocuments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdditionalDocument"
+        metadata:
+          type: object
+          properties:
+            externalReference:
+              type: string
+              maxLength: 100
+            notes:
+              type: string
+              maxLength: 500
+
+    DocumentItem:
+      type: object
+      required:
+        - invoice
+        - pdf
+      properties:
+        invoice:
+          $ref: "#/components/schemas/Document"
+        pdf:
+          type: string
+          format: base64
+          minLength: 1
+          description: Base64-encoded PDF document
+
+    CreateDocumentsRequest:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/DocumentItem"
+        successUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to redirect to on successful signing
+        failureUrl:
+          type: string
+          format: uri
+          nullable: true
+          description: URL to redirect to on signing failure
+
+    CreateDocumentsResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        signatureUUID:
+          type: string
+          description: UUID of the signature transaction for reference
+        signatureUrl:
+          type: string
+          format: uri
+          description: URL where the user should be redirected to sign
+
+    DocumentStatusResponse:
+      type: object
+      properties:
+        invoiceNumber:
+          type: string
+        status:
+          type: string
+          enum:
+            - SAVED
+            - SIGNING_PENDING
+            - SIGNING_FAILED
+            - SIGNING_COMPLETED
+            - TTN_PENDING
+            - TTN_SUBMITTED
+            - TTN_ACCEPTED
+            - TTN_REJECTED
+            - VERIFIED
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum:
+            - ok
+        service:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+
+paths:
+  /health:
+    get:
+      summary: Health check endpoint
+      description: Check if the API service is operational
+      tags:
+        - Health
+      security: []
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /documents:
+    post:
+      summary: Submit documents for signing and processing
+      description: |
+        Accepts one or more invoices along with their PDF representations.
+        Validates the invoice data, generates TEIF XML, initiates signing process,
+        and returns a signing URL for the user to complete the digital signature.
+      tags:
+        - Documents
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDocumentsRequest"
+            examples:
+              single_invoice:
+                summary: Single invoice submission
+                value:
+                  data:
+                    - invoice:
+                        header:
+                          documentNumber: "INV-2026-001"
+                          issueDate: "2026-01-20"
+                          type: INVOICE
+                        seller:
+                          identifier: "1234567AAM000"
+                          identifierType: FISCAL_ID
+                          name: "My Company"
+                          address:
+                            street: "123 Business St"
+                            city: "Tunis"
+                            postalCode: "1000"
+                            country: TN
+                        buyer:
+                          identifier: "7654321BBN999"
+                          identifierType: FISCAL_ID
+                          name: "Customer Corp"
+                        lines:
+                          - lineNumber: 1
+                            description: "Professional services"
+                            quantity: 10
+                            unitPrice:
+                              amount: 100
+                              currency: TND
+                            taxRate: 19
+                        totals:
+                          subtotalHT:
+                            amount: 1000
+                            currency: TND
+                          totalTax:
+                            amount: 190
+                            currency: TND
+                          totalTTC:
+                            amount: 1190
+                            currency: TND
+                      pdf: "JVBERi0xLjQKJeLj..."
+                  successUrl: "https://example.com/success"
+                  failureUrl: "https://example.com/failure"
+      responses:
+        "202":
+          description: Invoice accepted for signing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateDocumentsResponse"
+        "400":
+          description: Invalid request payload or validation failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Invoice issuer tax ID does not match authenticated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/callback/{status}:
+    post:
+      summary: Callback endpoint for signature completion (ngsign webhook)
+      description: |
+        Receives signature completion notifications from ngsign service.
+        On success, moves documents to TTN submission pending state.
+        On failure, marks documents as signing failed.
+      tags:
+        - Documents
+      parameters:
+        - name: status
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - success
+              - failure
+          description: Status of the signing operation
+        - name: hash
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Base64-encoded operation ID
+      requestBody:
+        description: Signature payload from ngsign (required for success status)
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: object
+                properties:
+                  invoiceNumber:
+                    type: string
+                  xmlBase64:
+                    type: string
+                    format: base64
+      responses:
+        "302":
+          description: Redirect to success or failure URL
+        "200":
+          description: Operation completed (no callback URL provided)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        "400":
+          description: Invalid status or missing hash parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/status/{invoiceNumber}:
+    get:
+      summary: Get the current status of a document
+      description: |
+        Retrieves the processing status of a submitted invoice.
+        Statuses include: SAVED, SIGNING_PENDING, SIGNING_FAILED,
+        SIGNING_COMPLETED, TTN_PENDING, TTN_SUBMITTED, TTN_ACCEPTED,
+        TTN_REJECTED, VERIFIED.
+      tags:
+        - Documents
+      parameters:
+        - name: invoiceNumber
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Invoice number to query
+          example: "INV-2026-001"
+      responses:
+        "200":
+          description: Document status retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentStatusResponse"
+        "404":
+          description: Document not found for the authenticated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /webhooks/ttn:
+    post:
+      summary: Webhook endpoint for TTN submission responses
+      description: |
+        Receives XML responses from the Tunisian Tax Authority (TTN)
+        web service regarding invoice submission status.
+      tags:
+        - Webhooks
+      requestBody:
+        required: true
+        content:
+          application/xml:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: Webhook processed successfully (no content)
+        "400":
+          description: Invalid payload format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+tags:
+  - name: Health
+    description: Service health checks
+  - name: Documents
+    description: Invoice document management and processing
+  - name: Webhooks
+    description: External service integrations and callbacks
