@@ -4,6 +4,7 @@ import type { NextFunction, Request, Response } from "express";
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { verifyToken } from "./business-logic/auth/token.js";
+import { initializeCronJobs, stopCronJobs } from "./cron/index.js";
 import type { TkrCustomers } from "./db/schema.js";
 import { router } from "./routes/index.js";
 import { validateRequiredEnvVars } from "./utils/env.utils.js";
@@ -11,6 +12,7 @@ import { validateRequiredEnvVars } from "./utils/env.utils.js";
 validateRequiredEnvVars();
 
 const app = express();
+let cronJobs: ReturnType<typeof initializeCronJobs> | null = null;
 
 const API_VERSION = "1";
 
@@ -82,7 +84,33 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
 // Server bootstrap
 const PORT = Number(process.env.PORT ?? 3000);
 
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   // Intentionally minimal (no logger)
   console.info(`tkr-efatoura-api listening on port ${PORT}`);
+});
+
+// Initialize cron jobs
+cronJobs = initializeCronJobs();
+
+// Graceful shutdown
+process.on("SIGTERM", () => {
+  console.info("SIGTERM received, shutting down gracefully");
+  if (cronJobs) {
+    stopCronJobs(cronJobs);
+  }
+  server.close(() => {
+    console.info("Server closed");
+    process.exit(0);
+  });
+});
+
+process.on("SIGINT", () => {
+  console.info("SIGINT received, shutting down gracefully");
+  if (cronJobs) {
+    stopCronJobs(cronJobs);
+  }
+  server.close(() => {
+    console.info("Server closed");
+    process.exit(0);
+  });
 });

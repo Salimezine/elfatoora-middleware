@@ -97,6 +97,9 @@ export interface DocumentArtifact {
 
   signed_at: Date;
   generated_at: Date;
+
+  /** TTN reference from the TTN submission */
+  ttn_reference: string | null;
 }
 
 export interface DocumentEvent {
