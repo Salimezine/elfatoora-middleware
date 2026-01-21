@@ -1,9 +1,10 @@
 import { Kysely } from "kysely";
 import crypto from "node:crypto";
-import { consultDocument } from "../business-logic/ttn/ws/consult-doc.js";
-import { extractRefTtnVal } from "../business-logic/ttn/ws/parse-consult-efact-response.js";
-import { db, tbl } from "../db/client.js";
-import type { DB } from "../db/schema.js";
+import { db, tbl } from "../../db/client.js";
+import type { DB } from "../../db/schema.js";
+import { env } from "../../utils/env.utils.js";
+import { getDocFromTTN } from "./ttn.helpers.js";
+import { extractRefTtnVal } from "./ws/parse-consult-efact-response.js";
 
 export async function handleDocumentFromTTN() {
   try {
@@ -97,14 +98,32 @@ async function processSingleDocumentForTTN(
       return;
     }
 
-    // Decode the base64 TEIF XML
-
-    // Submit to TTN via ngsign
-    const response = await consultDocument(doc.document_number, {
-      login: artifact.ttnLogin,
-      password: artifact.ttnPassword,
-      taxId: doc.seller_tax_id,
-    });
+    // Consult document status on TTN
+    const ttnMode = env().TTN_HANDLING_MODE;
+    const options =
+      ttnMode === "WS"
+        ? {
+            mode: "WS" as const,
+            credentials: {
+              login: artifact.ttnLogin,
+              password: artifact.ttnPassword,
+              taxId: doc.seller_tax_id,
+            },
+          }
+        : {
+            mode: "SFTP" as const,
+            credentials: {
+              username: artifact.ttnLogin,
+              password: artifact.ttnPassword,
+            },
+            documentNumber: doc.document_number,
+            sellerTaxId: doc.seller_tax_id,
+          };
+    const response = await getDocFromTTN(
+      doc.document_number,
+      doc.seller_tax_id,
+      options,
+    );
 
     if (!response.success) {
       await trx

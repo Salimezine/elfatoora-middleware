@@ -1,8 +1,9 @@
 import { Kysely } from "kysely";
 import crypto from "node:crypto";
-import { submitToTTN } from "../business-logic/ttn/ws/submit-to-ttn.js";
-import { db, tbl } from "../db/client.js";
-import type { DB } from "../db/schema.js";
+import { db, tbl } from "../../db/client.js";
+import type { DB } from "../../db/schema.js";
+import { env } from "../../utils/env.utils.js";
+import { submitDocToTTN } from "./ttn.helpers.js";
 
 export async function submitPendingDocumentsToTTN() {
   try {
@@ -104,12 +105,28 @@ async function processSingleDocumentForTTN(
     // Decode the base64 TEIF XML
     const teifXmlBuffer = Buffer.from(artifact.teifXML, "base64");
 
-    // Submit to TTN via ngsign
-    const submissionResponse = await submitToTTN(teifXmlBuffer, {
-      login: artifact.ttnLogin,
-      password: artifact.ttnPassword,
-      taxId: doc.seller_tax_id,
-    });
+    // Submit to TTN
+    const ttnMode = env().TTN_HANDLING_MODE;
+    const options =
+      ttnMode === "WS"
+        ? {
+            mode: "WS" as const,
+            credentials: {
+              login: artifact.ttnLogin,
+              password: artifact.ttnPassword,
+              taxId: doc.seller_tax_id,
+            },
+          }
+        : {
+            mode: "SFTP" as const,
+            credentials: {
+              username: artifact.ttnLogin,
+              password: artifact.ttnPassword,
+            },
+            documentNumber: doc.document_number,
+            sellerTaxId: doc.seller_tax_id,
+          };
+    const submissionResponse = await submitDocToTTN(teifXmlBuffer, options);
 
     if (!submissionResponse.success) {
       await trx

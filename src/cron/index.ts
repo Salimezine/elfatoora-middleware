@@ -1,6 +1,6 @@
 import cron from "node-cron";
-import { handleDocumentFromTTN } from "./ttn-consult-doc.js";
-import { submitPendingDocumentsToTTN } from "./ttn-submission.js";
+import { handleDocumentFromTTN } from "../business-logic/ttn/ttn-consult-doc.worker.js";
+import { submitPendingDocumentsToTTN } from "../business-logic/ttn/ttn-submission.worker.js";
 import { webhookWorker } from "./webhook-worker.js";
 
 export function initializeCronJobs() {
