@@ -1,17 +1,19 @@
 import "dotenv/config";
 
 import type { NextFunction, Request, Response } from "express";
-import express from "express";
+import express, { type Express } from "express";
 import { randomUUID } from "node:crypto";
+import { ZodError } from "zod";
 import { verifyToken } from "./business-logic/auth/token.js";
 import { initializeCronJobs, stopCronJobs } from "./cron/index.js";
 import type { TkrCustomers } from "./db/schema.js";
 import { router } from "./routes/index.js";
 import { validateRequiredEnvVars } from "./utils/env.utils.js";
+import { normalizeValidationErrors } from "./utils/zod.utils.js";
 
 validateRequiredEnvVars();
 
-const app = express();
+const app: Express = express();
 let cronJobs: ReturnType<typeof initializeCronJobs> | null = null;
 
 const API_VERSION = "1";
@@ -32,8 +34,10 @@ app.use(express.raw({ type: ["application/xml", "text/xml"], limit: "5mb" }));
 app.get("/health", (_req, res) => {
   res.status(200).json({
     status: "ok",
-    service: "tkr-efatoura-api",
+    service: "tkr-efatoora-api",
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    environment: process.env.NODE_ENV ?? "development",
   });
 });
 
@@ -58,18 +62,33 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
 
   // Verify token and extract customer info
   try {
-    // TODO: Implement token verification logic (e.g., JWT verification)
     const { customer, error } = await verifyToken(token);
     if (error || !customer) {
       return res.status(401).json({ error, message: "Invalid token" });
     }
+    // Inject customer into request context
     req.context = { customer };
-    // Extend Express Request type to include customer
-
     next();
   } catch {
     res.status(401).json({ error: "UNAUTHORIZED", message: "Invalid token" });
   }
+});
+
+// CORS configuration
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header(
+    "Access-Control-Allow-Headers",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+  );
+  res.header(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+  );
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
 });
 
 // API routes
@@ -77,6 +96,14 @@ app.use(`/v${API_VERSION}/`, router);
 
 // Global error handler
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
+  if (err instanceof ZodError) {
+    return res.status(400).json({
+      error: "VALIDATION_ERROR",
+      message: "Invalid request data",
+      details: normalizeValidationErrors(err.issues),
+    });
+  }
+
   const message = err instanceof Error ? err.message : "Unexpected error";
   res.status(500).json({ error: "INTERNAL_ERROR", message });
 });
@@ -86,7 +113,7 @@ const PORT = Number(process.env.PORT ?? 3000);
 
 const server = app.listen(PORT, () => {
   // Intentionally minimal (no logger)
-  console.info(`tkr-efatoura-api listening on port ${PORT}`);
+  console.info(`tkr-efatoora-api listening on port ${PORT}`);
 });
 
 // Initialize cron jobs
@@ -114,3 +141,15 @@ process.on("SIGINT", () => {
     process.exit(0);
   });
 });
+
+// For testing purposes
+export { app };
+
+// Export server for testing purposes
+export { server };
+
+// Export cronJobs for testing purposes
+export { cronJobs };
+
+// Export API_VERSION for testing purposes
+export { API_VERSION };
