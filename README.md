@@ -1,4 +1,4 @@
-# ElfatOOra API
+# Elfatoora API
 
 A middleware API for TEIF (Tunisian Electronic Invoicing Format) electronic invoicing. This service provides JSON validation, TEIF XML generation, digital signing via ngsign, TTN (Tax Authority) submission, status polling, signature verification, and webhook integration for third-party invoicing systems.
 

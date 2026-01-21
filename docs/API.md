@@ -1,6 +1,6 @@
 # API Documentation
 
-ElfatOOra API provides endpoints for managing electronic invoices (TEIF format) for the Tunisian tax authority system.
+Elfatoora API provides endpoints for managing electronic invoices (TEIF format) for the Tunisian tax authority system.
 
 ## Base URL
 

@@ -1,6 +1,6 @@
 openapi: 3.0.0
 info:
-  title: ElfatOOra API
+  title: Elfatoora API
   description: A middleware API for TEIF electronic invoicing. Provides JSON validation, TEIF XML generation, digital signing via ngsign, TTN submission, status polling, and webhook integration for third-party invoicing systems.
   version: 0.1.0
   contact:
