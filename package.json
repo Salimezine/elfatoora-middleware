@@ -3,6 +3,37 @@
   "version": "0.1.0",
   "description": "Middleware API for TEIF electronic invoicing: JSON validation, TEIF XML generation, digital signing via ngsign, TTN submission, polling, signature verification, and webhooks for third-party invoicing systems.",
   "license": "Apache-2.0",
+  "authors": [
+    {
+      "name": "Tekru Technologies",
+      "url": "https://tekru.net/"
+    },
+    {
+      "name": "NGSign",
+      "url": "https://www.ng-sign.com"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@gitlab.tekru.net:tekru/elfatoora-api.git"
+  },
+  "homepage": "https://gitlab.tekru.net/tekru/elfatoora-api",
+  "bugs": {
+    "url": "https://gitlab.tekru.net/tekru/elfatoora-api/-/issues"
+  },
+  "keywords": [
+    "invoicing",
+    "teif",
+    "tunisia",
+    "electronic-invoicing",
+    "xml",
+    "digital-signing",
+    "tax-authority",
+    "ttn",
+    "ngsign",
+    "middleware",
+    "api"
+  ],
   "type": "module",
   "engines": {
     "node": ">=24"
