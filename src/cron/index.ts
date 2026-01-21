@@ -1,6 +1,7 @@
 import cron from "node-cron";
 import { handleDocumentFromTTN } from "./ttn-consult-doc.js";
 import { submitPendingDocumentsToTTN } from "./ttn-submission.js";
+import { webhookWorker } from "./webhook-worker.js";
 
 export function initializeCronJobs() {
   // Run TTN submission cron every 5 minutes
@@ -15,16 +16,24 @@ export function initializeCronJobs() {
     await handleDocumentFromTTN();
   });
 
+  // Run webhook worker cron every 10 minutes
+  const webhookWorkerJob = cron.schedule("* * * * *", async () => {
+    console.log("[Cron] Starting webhook worker job");
+    await webhookWorker();
+  });
+
   console.log("[Cron] Initialized cron jobs");
 
   return {
     ttnSubmissionJob,
     ttnDocumentHandlerJob,
+    webhookWorkerJob,
   };
 }
 
 export function stopCronJobs(jobs: ReturnType<typeof initializeCronJobs>) {
   jobs.ttnSubmissionJob.stop();
   jobs.ttnDocumentHandlerJob.stop();
+  jobs.webhookWorkerJob.stop();
   console.log("[Cron] Stopped all cron jobs");
 }

@@ -34,6 +34,8 @@ export type DocumentEventType =
   | "RETRIED"
   | "STATUS_CHANGED";
 
+export type WebhookDeliveryStatus = "PENDING" | "DELIVERED" | "FAILED";
+
 // Tables
 
 /**
@@ -144,6 +146,33 @@ export interface TkrCustomersTokens {
   updated_at: Date;
 }
 
+export interface WebhookEndpoint {
+  id: string;
+  customer_id: string;
+  url: string;
+  secret: string;
+  /** Array of event types. Empty array means subscribe to all events */
+  events: string[];
+  is_active: boolean;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  webhook_id: string;
+  document_event_id: string;
+  payload: unknown;
+  payload_hash: string;
+  status: WebhookDeliveryStatus;
+  attempts: number;
+  last_attempt_at: Date | null;
+  next_retry_at: Date | null;
+  last_error: string | null;
+  created_at: Date;
+  updated_at: Date;
+}
+
 /**
  * ---------------------------------------------------------------------
  * Database mapping (suffix-aware)
@@ -158,6 +187,10 @@ export type Tables<P extends string> = {
   [K in `${P}documents_artifacts`]: DocumentArtifact;
 } & {
   [K in `${P}documents_events`]: DocumentEvent;
+} & {
+  [K in `${P}webhook_endpoints`]: WebhookEndpoint;
+} & {
+  [K in `${P}webhook_deliveries`]: WebhookDelivery;
 } & {
   [K in `${P}tkr_customers`]: TkrCustomers;
 } & {
