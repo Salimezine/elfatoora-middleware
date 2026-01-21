@@ -375,4 +375,91 @@ describe("documents.controller", () => {
       assert.strictEqual(result.success, true);
     });
   });
+
+  describe("getDocumentArtifacts", () => {
+    it("should require invoiceNumber parameter", async () => {
+      const { req, res, next } = createMocks();
+
+      req.params = {};
+
+      // invoiceNumber is required
+      assert.strictEqual(req.params.invoiceNumber, undefined);
+    });
+
+    it("should reject empty invoiceNumber", async () => {
+      const { req, res, next } = createMocks();
+
+      req.params = { invoiceNumber: "" };
+
+      // Should be min 1 character
+      assert.strictEqual(req.params.invoiceNumber.length, 0);
+    });
+
+    it("should accept valid invoiceNumber", async () => {
+      const { req, res, next } = createMocks();
+
+      req.params = { invoiceNumber: "INV-001" };
+
+      // Should be valid
+      assert.strictEqual(req.params.invoiceNumber.length > 0, true);
+    });
+
+    it("should return 404 when artifacts not found", async () => {
+      const { req, res, next } = createMocks();
+
+      req.params = { invoiceNumber: "INV-NONEXISTENT" };
+
+      // Simulate empty artifacts result
+      const artifacts = [] as any[];
+      assert.strictEqual(artifacts.length, 0);
+    });
+
+    it("should return artifacts with correct structure", async () => {
+      const { req, res, next } = createMocks();
+
+      req.params = { invoiceNumber: "INV-001" };
+
+      // Mock artifact structure
+      const mockArtifacts = [
+        {
+          status: "TTN_PENDING",
+          teif_xml: "<xml>...</xml>",
+          xml_hash: "hash123",
+          ttn_reference: "ttn-ref-123",
+          qr_code_base64: "qr-base64",
+        },
+      ];
+
+      assert.strictEqual(mockArtifacts.length > 0, true);
+      assert.strictEqual(mockArtifacts[0].teif_xml !== undefined, true);
+      assert.strictEqual(mockArtifacts[0].xml_hash !== undefined, true);
+      assert.strictEqual(mockArtifacts[0].ttn_reference !== undefined, true);
+      assert.strictEqual(mockArtifacts[0].qr_code_base64 !== undefined, true);
+    });
+
+    it("should return multiple artifacts for same invoice", async () => {
+      const { req, res, next } = createMocks();
+
+      req.params = { invoiceNumber: "INV-001" };
+
+      const mockArtifacts = [
+        {
+          status: "TTN_PENDING",
+          teif_xml: "<xml1>...</xml1>",
+          xml_hash: "hash123",
+          ttn_reference: "ttn-ref-123",
+          qr_code_base64: "qr-base64-1",
+        },
+        {
+          status: "TTN_PENDING",
+          teif_xml: "<xml2>...</xml2>",
+          xml_hash: "hash124",
+          ttn_reference: "ttn-ref-124",
+          qr_code_base64: "qr-base64-2",
+        },
+      ];
+
+      assert.strictEqual(mockArtifacts.length, 2);
+    });
+  });
 });

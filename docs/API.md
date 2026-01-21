@@ -222,6 +222,55 @@ Retrieve the current processing status of an invoice document.
 - `404 Not Found` - Invoice not found
 - `500 Internal Server Error` - Server error
 
+---
+
+### 4. Get Document Artifacts
+
+**Endpoint:** `GET /documents/artifacts/:invoiceNumber`
+
+Retrieve the signed XML artifacts and metadata for a processed invoice document.
+
+#### URL Parameters
+
+- `invoiceNumber` (required): The invoice document number (e.g., "INV/2025/001")
+
+#### Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "invoiceNumber": "INV/2025/001",
+  "artifacts": [
+    {
+      "status": "TTN_ACCEPTED",
+      "teif_xml": "<?xml version=\"1.0\"?>...",
+      "xml_hash": "abc123def456...",
+      "ttn_reference": "2025123456789",
+      "qr_code_base64": "iVBORw0KGgoAAAANSUhEUg..."
+    }
+  ]
+}
+```
+
+#### Response Fields
+
+- `invoiceNumber` - The invoice document number
+- `artifacts` - Array of document artifacts
+  - `status` - Current document status
+  - `teif_xml` - The signed TEIF XML content
+  - `xml_hash` - Hash of the XML for verification
+  - `ttn_reference` - Tax Authority reference number (if submitted)
+  - `qr_code_base64` - QR code image in base64 format (if generated)
+
+#### Status Codes
+
+- `200 OK` - Artifacts retrieved successfully
+- `404 Not Found` - Invoice or artifacts not found
+- `500 Internal Server Error` - Server error
+
+---
+
 ## Document Schema
 
 The invoice document follows this schema:

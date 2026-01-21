@@ -283,3 +283,58 @@ export async function getDocumentStatus(
     next(err);
   }
 }
+
+/**
+ * GET /v1/documents/artifacts/:invoiceNumber
+ */
+export async function getDocumentArtifacts(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) {
+  try {
+    const { invoiceNumber } = z
+      .object({ invoiceNumber: z.string().min(1) })
+      .parse(req.params);
+
+    const customerId = req.context.customer.id as unknown as string;
+
+    // Get the document artifacts
+    const artifacts = await db
+      .selectFrom(tbl("documents_artifacts"))
+      .innerJoin(
+        tbl("documents"),
+        `${tbl("documents_artifacts")}.document_id`,
+        `${tbl("documents")}.id`,
+      )
+      .innerJoin(
+        tbl("operations"),
+        `${tbl("documents")}.operation_id`,
+        `${tbl("operations")}.id`,
+      )
+      .select([
+        `${tbl("documents")}.status`,
+        `${tbl("documents_artifacts")}.teif_xml`,
+        `${tbl("documents_artifacts")}.xml_hash`,
+        `${tbl("documents_artifacts")}.ttn_reference`,
+        `${tbl("documents_artifacts")}.qr_code_base64`,
+      ])
+      .where(`${tbl("operations")}.customer_id`, "=", customerId)
+      .where(`${tbl("documents")}.document_number`, "=", invoiceNumber)
+      .execute();
+
+    if (artifacts.length === 0) {
+      res.status(404).json({
+        message: `Artifacts for invoice number ${invoiceNumber} not found.`,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      invoiceNumber,
+      artifacts,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
