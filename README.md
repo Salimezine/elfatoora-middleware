@@ -69,15 +69,18 @@ pnpm install
 
 ### 2. Environment Configuration
 
-Create a `.env` file in the root directory based on [.env-example](.env-example):
+Create a `.env` file in the root directory with the following variables:
 
 ```env
 # Server
 PORT=3000
 NODE_ENV=development
 
+# Database
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/e_fatoura
-PUBLIC_BASE_URL=
+
+# Public URLs
+PUBLIC_BASE_URL=http://localhost:3000
 ```
 
 ### 3. Database Setup
@@ -131,16 +134,11 @@ pnpm run lint:fix
 
 ### Documents Controller
 
-- `POST /documents` - Submit a new invoice document
-- `GET /documents/:id` - Retrieve document status
-- `GET /documents/:id/status` - Get current processing status
+- `POST /v1/documents` - Submit a new invoice document for signing
+- `POST /v1/documents/callback/:status` - Callback endpoint for ngSign (success/failure)
+- `GET /v1/documents/status/:invoiceNumber` - Retrieve document processing status
 
-### Webhooks
-
-- `POST /webhooks/ttn-status` - TTN status update webhook
-- `POST /webhooks/ngsign-callback` - ngsign signing completion callback
-
-See [API documentation](docs/) for detailed endpoint specifications.
+See [docs/API.md](docs/API.md) for detailed endpoint specifications.
 
 ## Database Migrations
 
@@ -149,15 +147,17 @@ Migrations are located in `src/db/migrations/`:
 1. `001_init_invoice_middleware.ts` - Initial schema setup
 2. `002_add_ttn_reference.ts` - Add TTN reference tracking
 3. `003_add_qr_code_base64.ts` - Add QR code support
+4. `004_webhooks.ts` - Webhook endpoints and deliveries (outbox pattern)
 
 ## Scheduled Jobs
 
 The application includes cron jobs for:
 
-- **TTN Document Consultation**: Polls TTN for document processing status
-- **TTN Submission**: Batch submits pending documents to TTN
+- **TTN Submission**: Submits pending documents to TTN every 5 minutes
+- **TTN Document Consultation**: Polls TTN for document status updates every 10 minutes
+- **Webhook Worker**: Processes pending webhook deliveries every minute
 
-Configure cron schedules in `src/cron/index.ts`.
+Configure cron schedules in [src/cron/index.ts](src/cron/index.ts).
 
 ## Development Workflow
 
@@ -192,8 +192,6 @@ All configuration is managed through environment variables. Key variables:
 - `NODE_ENV`: Application environment (development/production)
 - `PORT`: Server port (default: 3000)
 - `DB_*`: Database connection parameters
-- `TTN_*`: Tax Authority service credentials
-- `NGSIGN_*`: Digital signing service credentials
 
 ## Performance
 
@@ -257,4 +255,4 @@ For issues or questions, contact the development team.
 
 ---
 
-**Last Updated**: January 2026
+**Last Updated**: 21/01/2026

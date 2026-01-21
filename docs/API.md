@@ -203,39 +203,24 @@ Retrieve the current processing status of an invoice document.
 
 #### Document Status Values
 
-| Status                | Description                        |
-| --------------------- | ---------------------------------- |
-| `DRAFT`               | Document created, awaiting signing |
-| `SIGNING_IN_PROGRESS` | Currently being signed by ngSign   |
-| `SIGNING_FAILED`      | Signing failed                     |
-| `TTN_PENDING`         | Signed, awaiting TTN submission    |
-| `TTN_SUBMITTED`       | Submitted to Tax Authority         |
-| `TTN_ACCEPTED`        | Accepted by Tax Authority          |
-| `TTN_REJECTED`        | Rejected by Tax Authority          |
+| Status            | Description                        |
+| ----------------- | ---------------------------------- |
+| `RECEIVED`        | Document received and validated    |
+| `SIGNING_PENDING` | Awaiting user signature via ngSign |
+| `SIGNING_FAILED`  | Signing failed                     |
+| `TTN_PENDING`     | Signed, awaiting TTN submission    |
+| `TTN_SUBMITTED`   | Submitted to Tax Authority         |
+| `TTN_ACCEPTED`    | Accepted by Tax Authority          |
+| `TTN_REJECTED`    | Rejected by Tax Authority          |
+| `COMPLETED`       | Successfully processed             |
+| `FAILED`          | Processing failed                  |
+| `CANCELLED`       | Processing cancelled               |
 
 #### Status Codes
 
 - `200 OK` - Status retrieved successfully
 - `404 Not Found` - Invoice not found
 - `500 Internal Server Error` - Server error
-
----
-
-### 4. TTN Webhook
-
-**Endpoint:** `POST /webhooks/ttn`
-
-Receives status updates from the Tunisian Tax Authority (TTN) about submitted invoices.
-
-#### Request Body
-
-XML payload from TTN system (raw binary)
-
-#### Response
-
-**Status Code:** `204 No Content`
-
----
 
 ## Document Schema
 
