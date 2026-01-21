@@ -1,17 +1,26 @@
-const requiredVars = ["PUBLIC_BASE_URL", "DATABASE_URL"];
+import { z } from "zod";
 
-export function validateRequiredEnvVars(): void {
-  const missingVars = requiredVars.filter((varName) => !process.env[varName]);
+const envSchema = z.object({
+  DATABASE_URL: z.string(),
+  PUBLIC_BASE_URL: z.string(),
+  TTN_HANDLING_MODE: z.enum(["WS", "SFTP"]),
+});
 
-  if (missingVars.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missingVars.join(", ")}`,
-    );
+let envVars: z.infer<typeof envSchema>;
+
+export function validateRequiredEnvVars() {
+  envVars = envSchema.parse(process.env);
+}
+
+export function env() {
+  if (!envVars) {
+    envVars = envSchema.parse(process.env);
   }
+  return envVars;
 }
 
 export function publicUrl(path: string): string {
-  const baseUrl = process.env.PUBLIC_BASE_URL;
+  const baseUrl = env().PUBLIC_BASE_URL;
   if (!baseUrl) {
     throw new Error("PUBLIC_BASE_URL is not defined in environment variables.");
   }
