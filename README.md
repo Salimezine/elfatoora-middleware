@@ -11,7 +11,8 @@ Elfatoora API acts as a bridge between third-party invoicing systems and Tunisia
 - **JSON Schema Validation**: Validates invoice documents against predefined schemas
 - **TEIF XML Generation**: Converts validated JSON invoices to TEIF XML format
 - **Digital Signing**: Integration with ngsign for cryptographic signing of documents
-- **TTN Submission**: Submits signed invoices to the Tunisian Tax Authority (TTN)
+- **TTN Submission**: Submits signed invoices to the Tunisian Tax Authority (TTN) via web services or SFTP
+- **SFTP Support**: Secure file transfer for invoice uploads and downloads from TTN
 - **Status Polling**: Background jobs for tracking invoice processing status
 - **Signature Verification**: Validates digital signatures on submitted documents
 - **Webhook Support**: Notifies third-party systems of invoice processing results
@@ -37,7 +38,10 @@ src/
 │   ├── document/                 # Document calculations and processing
 │   ├── ngsign/                   # Digital signing integration
 │   ├── teif/                     # TEIF XML generation and type definitions
-│   └── ttn/                      # TTN web service integration
+│   └── ttn/                      # TTN integration
+│       ├── ws/                   # Web service submission
+│       ├── sftp/                 # SFTP file transfer for TTN
+│       └── ...workers            # Background workers
 ├── controllers/                  # Request handlers
 ├── cron/                         # Scheduled jobs
 ├── db/                           # Database client, migrations, and schema
@@ -136,9 +140,16 @@ pnpm run lint:fix
 
 - `POST /v1/documents` - Submit a new invoice document for signing
 - `POST /v1/documents/callback/:status` - Callback endpoint for ngSign (success/failure)
-- `GET /v1/documents/status/:invoiceNumber` - Retrieve document processing status
+  See [docs/API.md](docs/API.md) for detailed endpoint specifications.
 
-See [docs/API.md](docs/API.md) for detailed endpoint specifications.
+### TTN Integration
+
+The application supports multiple TTN submission methods:
+
+- **Web Services**: SOAP-based submission to TTN servers
+- **SFTP**: Secure file transfer for invoice uploads and downloads
+
+See [src/business-logic/ttn/sftp/README.md](src/business-logic/ttn/sftp/README.md) for SFTP configuration and usage.
 
 ## Database Migrations
 
