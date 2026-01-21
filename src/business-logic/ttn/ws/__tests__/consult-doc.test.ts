@@ -1,8 +1,8 @@
 import assert from "node:assert";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { consultDocument } from "../consult-doc.js";
+import { consultDocumentWS } from "../consult-doc.js";
 
-describe("consultDocument", () => {
+describe("consultDocumentWS", () => {
   const mockCredentials = {
     login: "testuser",
     password: "testpass",
@@ -40,7 +40,11 @@ describe("consultDocument", () => {
     global.fetch = async () =>
       new Response(mockResponse, { status: 200, statusText: "OK" });
 
-    const result = await consultDocument("DOC001", mockCredentials);
+    const result = await consultDocumentWS(
+      "DOC001",
+      mockCredentials.taxId,
+      mockCredentials,
+    );
     assert.strictEqual(result.success, true);
     assert.ok("item" in result && result.item);
   });
@@ -52,7 +56,11 @@ describe("consultDocument", () => {
         statusText: "Internal Server Error",
       });
 
-    const result = await consultDocument("DOC001", mockCredentials);
+    const result = await consultDocumentWS(
+      "DOC001",
+      mockCredentials.taxId,
+      mockCredentials,
+    );
     assert.strictEqual(result.success, false);
     assert.ok("error" in result && result.error.includes("HTTP 500"));
   });
@@ -70,7 +78,11 @@ describe("consultDocument", () => {
     global.fetch = async () =>
       new Response(mockResponse, { status: 200, statusText: "OK" });
 
-    const result = await consultDocument("DOC001", mockCredentials);
+    const result = await consultDocumentWS(
+      "DOC001",
+      mockCredentials.taxId,
+      mockCredentials,
+    );
     assert.strictEqual(result.success, false);
     assert.ok("error" in result && result.error.includes("No items found"));
   });
@@ -82,10 +94,9 @@ describe("consultDocument", () => {
       return new Response("<soap:Envelope></soap:Envelope>", { status: 200 });
     };
 
-    await consultDocument("DOC001", {
+    await consultDocumentWS("DOC001", "<id>", {
       login: "user&pass",
       password: 'pass"word',
-      taxId: "<id>",
     });
 
     assert.ok(capturedBody.includes("&amp;"));
@@ -97,7 +108,11 @@ describe("consultDocument", () => {
     const mockResponse = `<response>test</response>`;
     global.fetch = async () => new Response(mockResponse, { status: 200 });
 
-    const result = await consultDocument("DOC001", mockCredentials);
+    const result = await consultDocumentWS(
+      "DOC001",
+      mockCredentials.taxId,
+      mockCredentials,
+    );
     assert.strictEqual(result.rawResponse, mockResponse);
   });
 });

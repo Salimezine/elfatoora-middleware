@@ -6,7 +6,6 @@ import {
 interface TTNCredentials {
   login: string;
   password: string;
-  taxId: string;
 }
 
 interface EfactCriteria {
@@ -22,7 +21,7 @@ interface EfactCriteria {
   generatedRef?: string;
 }
 
-type TTNConsultResult = {
+export type TTNConsultResult = {
   success: boolean;
   rawResponse: string;
 } & (
@@ -42,11 +41,12 @@ const DEFAULT_TTN_ENDPOINT =
 /**
  * Consult invoice(s) status from TTN
  */
-export async function consultDocument(
+export async function consultDocumentWS(
   documentNumber: string,
+  taxId: string,
   credentials: TTNCredentials,
 ): Promise<TTNConsultResult> {
-  const soapEnvelope = buildConsultDocumentEnvelope(credentials, {
+  const soapEnvelope = buildConsultDocumentEnvelope(credentials, taxId, {
     documentNumber,
   });
 
@@ -100,6 +100,7 @@ export async function consultDocument(
 
 function buildConsultDocumentEnvelope(
   input: TTNCredentials,
+  taxId: string,
   criteria: EfactCriteria,
 ): string {
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -111,7 +112,7 @@ function buildConsultDocumentEnvelope(
     <ser:consultEfact>
       <login>${escapeXml(input.login)}</login>
       <password>${escapeXml(input.password)}</password>
-      <matricule>${escapeXml(input.taxId)}</matricule>
+      <matricule>${escapeXml(taxId)}</matricule>
       <efactCriteria>
         ${criteriaToXml(criteria)}
       </efactCriteria>
