@@ -9,6 +9,7 @@ import { initializeCronJobs, stopCronJobs } from "./cron/index.js";
 import type { TkrCustomers } from "./db/schema.js";
 import { router } from "./routes/index.js";
 import { validateRequiredEnvVars } from "./utils/env.utils.js";
+import { TkrAppError } from "./utils/error.utils.js";
 import { normalizeValidationErrors } from "./utils/zod.utils.js";
 
 validateRequiredEnvVars();
@@ -104,6 +105,15 @@ app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     });
   }
 
+  if (err instanceof TkrAppError) {
+    return res.status(err.statusCode).json({
+      message: err.message,
+      error: err.code,
+      details: err.issues || [],
+    });
+  }
+
+  console.error("Unhandled error:", err);
   const message = err instanceof Error ? err.message : "Unexpected error";
   res.status(500).json({ error: "INTERNAL_ERROR", message });
 });
