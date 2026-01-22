@@ -8,6 +8,7 @@ import type {
   DocumentStatus,
 } from "../../db/schema.js";
 import type { Document } from "../../schemas/document.schema.js";
+import { TkrAppError } from "../../utils/error.utils.js";
 
 export async function createIncomingDocumentsTransaction(
   db: Kysely<DB>,
@@ -194,7 +195,7 @@ export async function savedDocAfterSign(
 ) {
   if (!xmlBase64) {
     const e = `Missing xmlBase64 in webhook payload for operation ID ${operationId}`;
-    throw new Error(e);
+    throw new TkrAppError(400, e, "MISSING_XML_BASE64");
   }
   // Find document by operation ID and invoice number
   const document = await trx
@@ -205,7 +206,7 @@ export async function savedDocAfterSign(
     .executeTakeFirst();
   if (!document) {
     const e = `Document not found for operation ID ${operationId} and invoice number ${invoiceNumber}`;
-    throw new Error(e);
+    throw new TkrAppError(404, e, "DOCUMENT_NOT_FOUND");
   }
   // Update document artifact with signed TEIF XML
   await trx

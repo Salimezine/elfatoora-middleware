@@ -52,6 +52,9 @@ declare global {
 }
 app.use(async (req: Request, res: Response, next: NextFunction) => {
   if (req.path === "/health") return next();
+  // Exempt webhook callbacks from auth
+  if (req.path.startsWith(`/v${API_VERSION}/documents/callback/`))
+    return next();
 
   const token = req.headers.authorization?.split(" ")[1];
 

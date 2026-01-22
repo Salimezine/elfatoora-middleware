@@ -148,14 +148,14 @@ export async function documentsCallback(
 
     if (!status.success) {
       res.status(400).json({
-        message: "Status must be either 'success' or 'failure'",
+        error: "Status must be either 'success' or 'failure'",
       });
       return;
     }
 
     if (!hash || typeof hash !== "string") {
       res.status(400).json({
-        message: "Missing or invalid hash parameter",
+        error: "Missing or invalid hash parameter",
       });
       return;
     }
@@ -165,9 +165,15 @@ export async function documentsCallback(
     // Get the operation to find NGSign UUID
     const operation = await db
       .selectFrom(tbl("operations"))
-      .selectAll()
+      .select(["id", "success_callback_url", "failure_callback_url"])
       .where("id", "=", operationId)
       .executeTakeFirst();
+
+    if (!operation) {
+      const e = `Operation not found for ID ${operationId}`;
+      res.status(404).json({ error: e });
+      return;
+    }
 
     if (status.data === "failure") {
       await db.transaction().execute(async (trx) => {
@@ -184,9 +190,7 @@ export async function documentsCallback(
           .execute();
       });
       // Redirect to failure URL
-      const url =
-        operation?.failure_callback_url ||
-        req.context.customer.default_failure_url;
+      const url = operation.failure_callback_url;
       if (!url) {
         res.status(200).json({ message: "Operation marked as failed." });
         return;
@@ -195,7 +199,7 @@ export async function documentsCallback(
       return;
     }
 
-    const payload = req.body as WebhookPayload[];
+    const item = req.body as WebhookPayload;
 
     trx = await db.startTransaction().execute();
 
@@ -203,29 +207,25 @@ export async function documentsCallback(
     await updateDocumentStatus(trx, operationId, "TTN_PENDING");
 
     // Loop through payload and update document artifacts
-    for (const item of payload) {
-      if (!item.xmlBase64) {
-        const e = `Missing xmlBase64 in webhook payload for operation ID ${operationId}`;
-        throw new Error(e);
-      }
-      if (!item.invoiceNumber) {
-        const e = `Missing invoiceNumber in webhook payload for operation ID ${operationId}`;
-        throw new Error(e);
-      }
-      await savedDocAfterSign(
-        trx,
-        operationId,
-        item.invoiceNumber,
-        item.xmlBase64,
-      );
+    if (!item.xmlBase64) {
+      const e = `Missing xmlBase64 in webhook payload for operation ID ${operationId}`;
+      throw new Error(e);
     }
+    if (!item.invoiceNumber) {
+      const e = `Missing invoiceNumber in webhook payload for operation ID ${operationId}`;
+      throw new Error(e);
+    }
+    await savedDocAfterSign(
+      trx,
+      operationId,
+      item.invoiceNumber,
+      item.xmlBase64,
+    );
 
     await trx.commit().execute();
 
     // Redirect to success URL
-    const url =
-      operation?.success_callback_url ||
-      req.context.customer.default_success_url;
+    const url = operation.success_callback_url;
     if (!url) {
       res.status(200).json({ message: "Operation marked as successful." });
       return;
