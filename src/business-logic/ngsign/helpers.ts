@@ -1,8 +1,9 @@
 import urlJoin from "url-join";
+import { TkrAppError } from "../../utils/error.utils.js";
 
 export const ngSignUrls = {
-  sandbox: "https://sandbox.ngsign.com",
-  production: "https://api.ngsign.com",
+  sandbox: "https://sandbox.ng-sign.com/server",
+  production: "https://api.ng-sign.com/server",
 };
 
 export const ngSignBase = (path: string, mode: "PROD" | "TEST" = "TEST") => {
@@ -18,7 +19,7 @@ export async function ngsignFetch<T>(
   path: string,
   token: string,
   options: RequestInit,
-  mode?: "PROD" | "TEST"
+  mode?: "PROD" | "TEST",
 ): Promise<T> {
   if (!token) {
     throw new Error("NGSign token is not defined");
@@ -35,7 +36,21 @@ export async function ngsignFetch<T>(
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`NGSign error ${res.status}: ${text}`);
+
+    // Handle 405 separately if needed
+    if (res.status === 405) {
+      throw new TkrAppError(
+        res.status,
+        "NGSignMethodNotAllowed",
+        `NGSign method not allowed: ${text}`,
+      );
+    }
+
+    throw new TkrAppError(
+      res.status,
+      "NGSignFetchError",
+      `NGSign error ${res.status}: ${text}`,
+    );
   }
 
   return res.json() as Promise<T>;
