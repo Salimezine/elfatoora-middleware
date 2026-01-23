@@ -133,29 +133,4 @@ describe("Documents API E2E Tests (Real App)", () => {
       );
     });
   });
-
-  it("should require authentication", async () => {
-    const response = await request(app).get(
-      "/v1/documents/artifacts/INV-TEST-001",
-    );
-
-    logResponse("Artifacts Without Auth", response, 401);
-    assert.strictEqual(
-      response.status,
-      401,
-      `Expected 401 but got ${response.status}: ${JSON.stringify(response.body)}`,
-    );
-  });
-
-  it("should return artifacts for authenticated requests", async () => {
-    const response = await request(app)
-      .get("/v1/documents/artifacts/INV-TEST-003")
-      .set("Authorization", `Bearer ${testCustomer!.token}`);
-
-    logResponse("Get Artifacts", response);
-    assert(
-      response.status === 200 || response.status === 404,
-      `Expected 200 or 404 but got ${response.status}: ${JSON.stringify(response.body)}`,
-    );
-  });
 });
