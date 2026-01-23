@@ -7,7 +7,6 @@ import {
   saveIncomingDocumentArtifact,
   saveIncomingDocuments,
   setNGSignUUID,
-  updateDocumentStatus,
   type SaveIncomingDocumentArtifactItem,
 } from "../business-logic/document/incoming-documents.js";
 import {
@@ -21,6 +20,7 @@ import { db, tbl } from "../db/client.js";
 import type { DB } from "../db/schema.js";
 import { DocumentSchema } from "../schemas/document.schema.js";
 import { publicUrl } from "../utils/env.utils.js";
+import { TkrAppError } from "../utils/error.utils.js";
 
 /**
  * Request payload schema
@@ -81,10 +81,26 @@ export async function createDocuments(
       const teifObject = mapInvoiceToTeifXml(item.invoice);
       const teifXml = buildTeifXml(teifObject);
 
+      const documentId = savedDocs.find(
+        (d) => d.documentNumber === item.invoice.header.documentNumber,
+      )?.id;
+      if (!documentId) {
+        throw new TkrAppError(
+          500,
+          `Saved document not found for invoice number ${item.invoice.header.documentNumber}`,
+          "DOCUMENT_NOT_FOUND",
+        );
+      }
+      const hash = Buffer.from(`${opId};${documentId}`).toString("base64");
+
       invoices.push({
         invoiceNumber: item.invoice.header.documentNumber,
         pdfContent: item.pdf,
         teifXmlContent: teifXml,
+        callbackUrl: {
+          successUrl: publicUrl(`/v1/documents/callback/success?hash=${hash}`),
+          failureUrl: publicUrl(`/v1/documents/callback/failure?hash=${hash}`),
+        },
       });
     }
 
@@ -111,6 +127,7 @@ export async function createDocuments(
       {
         invoices,
         signerEmail: req.context.customer.ngsign_signer_email,
+        // TODO check with ngsign for redirection after signing
         callbackUrl: {
           successUrl: publicUrl(`/v1/documents/callback/success?hash=${hash}`),
           failureUrl: publicUrl(`/v1/documents/callback/failure?hash=${hash}`),
@@ -160,7 +177,15 @@ export async function documentsCallback(
       return;
     }
 
-    const operationId = Buffer.from(hash, "base64").toString("utf-8");
+    // Hash is base64 encoded string of "<operationId>;<documentId>"
+    const [operationId, documentId] = Buffer.from(hash, "base64")
+      .toString("utf-8")
+      .split(";");
+    if (!operationId || !documentId) {
+      const error = "Invalid hash parameter: missing operationId or documentId";
+      res.status(400).json({ error });
+      return;
+    }
 
     // Get the operation to find NGSign UUID
     const operation = await db
@@ -201,27 +226,25 @@ export async function documentsCallback(
 
     const item = req.body as WebhookPayload;
 
-    trx = await db.startTransaction().execute();
-
-    // Update documents status to TTN_PENDING
-    await updateDocumentStatus(trx, operationId, "TTN_PENDING");
-
     // Loop through payload and update document artifacts
     if (!item.xmlBase64) {
       const e = `Missing xmlBase64 in webhook payload for operation ID ${operationId}`;
-      throw new Error(e);
+      res.status(400).json({ error: e });
+      return;
     }
     if (!item.invoiceNumber) {
       const e = `Missing invoiceNumber in webhook payload for operation ID ${operationId}`;
-      throw new Error(e);
+      res.status(400).json({ error: e });
+      return;
     }
+
+    trx = await db.startTransaction().execute();
     await savedDocAfterSign(
       trx,
       operationId,
       item.invoiceNumber,
       item.xmlBase64,
     );
-
     await trx.commit().execute();
 
     // Redirect to success URL

@@ -1,14 +1,6 @@
-/* ============================
- * NGSign API – Type Declarations
- * OpenAPI 3.0.3
- * Version: 2.37
- * ============================
- */
-
-/* ============
- * Enums
- * ============
- */
+/* =======================
+   Enums
+======================= */
 
 export enum InvoiceStatus {
   CREATED = "CREATED",
@@ -20,262 +12,153 @@ export enum InvoiceStatus {
   TTN_SIGNED = "TTN_SIGNED",
 }
 
-/* ============
- * Common / Utility Types
- * ============
- */
+/* =======================
+   Common / Utility
+======================= */
 
-/** Base64-encoded binary content */
-export type Base64String = string;
-
-/** ISO 8601 date-time string */
-export type ISODateTime = string;
-
-/* ============
- * Security
- * ============
- */
-
-export interface BearerAuth {
-  /** JWT token */
-  token: string;
+export interface ResponseVoid {
+  message?: string;
+  errorCode?: number;
 }
 
-/* ============
- * Core Domain Models
- * ============
- */
+export interface ResponseByteArray {
+  object?: string; // base64
+  message?: string;
+  errorCode?: number;
+}
+
+/* =======================
+   Users & Organization
+======================= */
 
 export interface NGUser {
   email?: string;
   firstName?: string;
   lastName?: string;
-  [key: string]: unknown;
+  [key: string]: any;
 }
 
 export interface NGLimitedOrganization {
-  name?: string;
   id?: string;
-  [key: string]: unknown;
+  name?: string;
+  [key: string]: any;
 }
+
+/* =======================
+   Callback
+======================= */
 
 export interface NGCallbackUrl {
   successUrl?: string;
   failureUrl?: string;
 }
 
+/* =======================
+   Invoice Configuration
+======================= */
+
 export interface InvoiceConfiguration {
   qrPositionX?: number;
   qrPositionY?: number;
   qrPositionP?: number;
-
   labelPositionX?: number;
   labelPositionY?: number;
   labelPositionP?: number;
-
-  qrRatio?: number; // default: 0.5
-
+  qrRatio?: number; // default 0.5
   textPositionX?: number;
   textPositionY?: number;
   textPage?: number;
-
-  allPages?: boolean; // default: false
+  allPages?: boolean; // default false
 }
 
-/* ============
- * Invoice Upload Models
- * ============
- */
+/* =======================
+   Invoice Upload
+======================= */
 
 export interface NGXMLInvoiceUpload {
-  /** PDF file content (Base64) */
-  invoiceFileB64?: Base64String;
-
-  configuration?: InvoiceConfiguration;
-
-  /** TEIF XML content (Base64) */
-  invoiceTIEF?: Base64String;
-
-  clientEmail?: string;
-
-  callbackUrl?: NGCallbackUrl;
-
+  invoiceFileB64?: string;
+  invoiceTIEF?: string;
   invoiceNumber?: string;
+  clientEmail?: string;
+  configuration?: InvoiceConfiguration;
+  callbackUrl?: NGCallbackUrl;
 }
 
 export interface NGXMLCreationInvoiceUpload {
-  /** List of invoices to upload */
   invoices?: NGXMLInvoiceUpload[];
-
-  /**
-   * Signer email.
-   * If null/undefined, the creator is assumed to be the signer.
-   */
-  signerEmail?: string;
+  signerEmail?: string | null;
 }
 
 export interface NGXMLAdvancedInvoiceUpload {
   invoices?: NGXMLInvoiceUpload[];
-
-  /** Must belong to the organization */
   signerEmail?: string;
-
-  /** Optional seal passphrase */
   passphrase?: string;
-
-  /** CC email (optional) */
   ccEmail?: string;
 }
 
-/* ============
- * Invoice & Transaction Models
- * ============
- */
+/* =======================
+   Invoice Domain
+======================= */
 
 export interface NGXMLInvoice {
-  status?: InvoiceStatus;
-
   uuid?: string;
-
+  status?: InvoiceStatus;
   clientEmail?: string;
-
-  /** TTN-generated reference */
-  ttnReference?: string;
-
-  /** TTN error message if any */
-  ttnErrorMessage?: string;
-
   invoiceNumber?: string;
-
-  invoiceDate?: ISODateTime;
-
-  /** Whether a PDF was provided */
+  invoiceDate?: string; // ISO date-time
+  ttnReference?: string;
+  ttnErrorMessage?: string;
   withPDF?: boolean;
-
-  /** 2D-Doc image (Base64) */
-  twoDocImage?: Base64String;
-
+  twoDocImage?: string; // base64
   callbackUrl?: NGCallbackUrl;
-
-  /** File size in bytes */
   fileSize?: number;
 }
 
 export interface NGXMLInvoiceTransaction {
-  /** Unique transaction identifier */
   uuid?: string;
-
   invoices?: NGXMLInvoice[];
-
-  creationDate?: ISODateTime;
-
+  creationDate?: string; // ISO date-time
   status?: string;
-
   digestAlgo?: string;
-
-  signingTime?: ISODateTime;
-
+  signingTime?: string; // ISO date-time
   creator?: NGUser;
-
   user?: NGUser;
-
   organization?: NGLimitedOrganization;
-
   deleterId?: NGUser;
-
-  deleteDate?: ISODateTime;
-
+  deleteDate?: string; // ISO date-time
   deleted?: boolean;
-
   locked?: boolean;
-
-  /** Signed using electronic seal */
   bySeal?: boolean;
-
-  /** Signed using seal V2 (without PDF) */
   bySealV2?: boolean;
-
-  /** Created via Web Service only */
   wsOnlyCreation?: boolean;
 }
 
-/* ============
- * Webhook
- * ============
- */
+/* =======================
+   API Responses
+======================= */
 
-export interface WebhookPayload {
-  /** Invoice UUID */
-  uuid?: string;
-
-  invoiceNumber?: string;
-
-  /** TTN reference (nullable) */
-  ttnReference?: string | null;
-
-  /** 2D-Doc image (Base64, nullable) */
-  twoDocImage?: Base64String | null;
-
-  /** Signed PDF (Base64, nullable) */
-  pdfBase64?: Base64String | null;
-
-  /** Signed XML (Base64) */
-  xmlBase64?: Base64String;
-}
-
-/* ============
- * API Response Wrappers
- * ============
- */
-
-export interface ApiResponseBase {
+export interface ResponseNGXMLInvoiceTransaction {
+  object?: NGXMLInvoiceTransaction;
   message?: string;
   errorCode?: number;
 }
 
-export interface ResponseVoid extends ApiResponseBase {}
-
-export interface ResponseByteArray extends ApiResponseBase {
-  object?: Base64String;
-}
-
-export interface ResponseNGXMLInvoice extends ApiResponseBase {
+export interface ResponseNGXMLInvoice {
   object?: NGXMLInvoice;
+  message?: string;
+  errorCode?: number;
   ccEmail?: string;
 }
 
-export interface ResponseNGXMLInvoiceTransaction extends ApiResponseBase {
-  object?: NGXMLInvoiceTransaction;
+/* =======================
+   Webhook
+======================= */
+
+export interface WebhookPayload {
+  uuid?: string;
+  invoiceNumber?: string;
+  ttnReference?: string | null;
+  twoDocImage?: string | null;
+  pdfBase64?: string | null;
+  xmlBase64?: string;
 }
-
-/* ============
- * API Endpoints (Request / Response typings)
- * ============
- */
-
-/**
- * POST /protected/invoice/xml/transaction/create
- */
-export interface CreateInvoiceTransactionRequest {
-  body: NGXMLCreationInvoiceUpload;
-}
-
-export interface CreateInvoiceTransactionResponse extends ResponseNGXMLInvoiceTransaction {}
-
-/**
- * POST /protected/invoice/xml/check/{uuid}
- */
-export interface CheckInvoiceStatusRequest {
-  uuid: string;
-}
-
-export interface CheckInvoiceStatusResponse extends ResponseNGXMLInvoice {}
-
-/**
- * GET /protected/invoice/xml/xml/{uuid}
- */
-export interface DownloadInvoiceXmlRequest {
-  uuid: string;
-}
-
-export interface DownloadInvoiceXmlResponse extends ResponseByteArray {}

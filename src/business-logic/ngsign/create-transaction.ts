@@ -1,7 +1,7 @@
 import { ngSignBase, ngsignFetch, toBase64 } from "./helpers.js";
 import type {
-  CreateInvoiceTransactionResponse,
   NGXMLCreationInvoiceUpload,
+  ResponseNGXMLInvoiceTransaction,
 } from "./ngsign-api.js";
 
 // Input types
@@ -63,13 +63,10 @@ export async function createSignatureTransaction(
     signerEmail: input.signerEmail,
   };
 
-  const response = await ngsignFetch<CreateInvoiceTransactionResponse>(
+  const response = await ngsignFetch<ResponseNGXMLInvoiceTransaction>(
     "/protected/invoice/xml/transaction/create",
     ngSignToken,
-    {
-      method: "POST",
-      body: JSON.stringify(payload),
-    },
+    { method: "POST", body: JSON.stringify(payload) },
     mode,
   );
 

@@ -116,7 +116,7 @@ export async function saveIncomingDocumentArtifact(
 
   const trx = await db.startTransaction().execute();
   try {
-    const artifacts = await trx
+    await trx
       .insertInto(tbl("documents_artifacts"))
       .values(
         items.map((item) => ({
@@ -218,6 +218,16 @@ export async function savedDocAfterSign(
       signed_at: new Date(),
     })
     .where("document_id", "=", document.id)
+    .execute();
+
+  // Update document status to TTN_PENDING
+  await trx
+    .updateTable(tbl("documents"))
+    .set({
+      status: "TTN_PENDING",
+      updated_at: new Date(),
+    })
+    .where("id", "=", document.id)
     .execute();
 
   // Save the signature event

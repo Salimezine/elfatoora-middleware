@@ -236,10 +236,6 @@ describe("Documents API E2E Tests (Real App)", () => {
         .post("/v1/documents")
         .set("Authorization", `Bearer ${testCustomer!.token}`)
         .send(payload);
-
-      if (response.status !== 202 && response.status !== 200) {
-        console.error("Response Body:", response.body);
-      }
       assert(
         response.status === 202 || response.status === 200,
         `Expected 202 or 200 but got ${response.status}: ${JSON.stringify(response.body)}`,
@@ -439,7 +435,7 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
 
     it("should return error for base64 hash decoding to non-existent operation", async () => {
       const uuid = randomUUID();
-      const invalidHash = Buffer.from(uuid).toString("base64");
+      const invalidHash = Buffer.from(`${uuid};${uuid}`).toString("base64");
       const response = await request(app)
         .post("/v1/documents/callback/success")
         .query({ hash: invalidHash })
@@ -465,7 +461,9 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
       // Create a test operation with failure URL
       const operationId = randomUUID();
       const failureUrl = "https://example.com/failure";
-      const hash = Buffer.from(operationId).toString("base64");
+      const hash = Buffer.from(`${operationId};${operationId}`).toString(
+        "base64",
+      );
 
       await db
         .insertInto("tbl_operations")
@@ -504,7 +502,9 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
 
     it("should return 200 JSON response when no redirect URLs exist", async () => {
       const operationId = randomUUID();
-      const hash = Buffer.from(operationId).toString("base64");
+      const hash = Buffer.from(`${operationId};${operationId}`).toString(
+        "base64",
+      );
 
       await db
         .insertInto("tbl_operations")
@@ -539,7 +539,9 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
 
     it("should be idempotent for already FAILED operations", async () => {
       const operationId = randomUUID();
-      const hash = Buffer.from(operationId).toString("base64");
+      const hash = Buffer.from(`${operationId};${operationId}`).toString(
+        "base64",
+      );
 
       await db
         .insertInto("tbl_operations")
@@ -574,7 +576,9 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
     it("should update documents to TTN_PENDING, save artifacts, and redirect to success URL", async () => {
       const operationId = randomUUID();
       const successUrl = "https://example.com/success";
-      const hash = Buffer.from(operationId).toString("base64");
+      const hash = Buffer.from(`${operationId};${operationId}`).toString(
+        "base64",
+      );
 
       await db
         .insertInto("tbl_operations")
@@ -592,10 +596,11 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
 
       // Create a document linked to the operation
       const doc = createValidInvoice();
+      const documentId = randomUUID();
       await db
         .insertInto("tbl_documents")
         .values({
-          id: randomUUID(),
+          id: documentId,
           operation_id: operationId,
           document_number: doc.header.documentNumber,
           seller_tax_id: TEST_TAX_ID,
@@ -618,11 +623,11 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
       const xmlBase64 = Buffer.from("<invoice>test</invoice>").toString(
         "base64",
       );
+      console.log("Callback XML Base64:", xmlBase64);
       const response = await request(app)
         .post("/v1/documents/callback/success")
         .query({ hash })
         .send({ xmlBase64, invoiceNumber: doc.header.documentNumber });
-
       assert(
         response.status === 302 || response.status === 303,
         `Unexpected status code: ${response.status}`,
@@ -635,16 +640,16 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
 
       // Verify operation status updated
       const operation = await db
-        .selectFrom("tbl_operations")
-        .where("id", "=", operationId)
-        .selectAll()
+        .selectFrom("tbl_documents")
+        .where("id", "=", documentId)
+        .select(["status"])
         .executeTakeFirst()
         .catch(console.error);
 
       assert.strictEqual(
         operation?.status,
-        "COMPLETED",
-        "Operation not completed",
+        "TTN_PENDING",
+        "Document not updated to TTN_PENDING",
       );
     });
 
@@ -766,6 +771,8 @@ describe("POST /v1/documents/callback/:status - Webhook Callbacks", () => {
           id: operationId,
           customer_id: TEST_CUSTOMER_ID,
           status: "PENDING",
+          failure_callback_url: "", // not used in this test
+          success_callback_url: "", // not used in this test
           created_at: new Date(),
           updated_at: new Date(),
         })
