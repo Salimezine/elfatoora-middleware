@@ -340,15 +340,57 @@ components:
         status:
           type: string
           enum:
-            - SAVED
+            - RECEIVED
             - SIGNING_PENDING
             - SIGNING_FAILED
-            - SIGNING_COMPLETED
             - TTN_PENDING
             - TTN_SUBMITTED
             - TTN_ACCEPTED
             - TTN_REJECTED
-            - VERIFIED
+            - COMPLETED
+            - FAILED
+            - CANCELLED
+
+    DocumentArtifactsResponse:
+      type: object
+      properties:
+        invoiceNumber:
+          type: string
+          description: The invoice document number
+        artifacts:
+          type: array
+          description: Array of document artifacts
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+                description: Current document status
+                enum:
+                  - RECEIVED
+                  - SIGNING_PENDING
+                  - SIGNING_FAILED
+                  - TTN_PENDING
+                  - TTN_SUBMITTED
+                  - TTN_ACCEPTED
+                  - TTN_REJECTED
+                  - COMPLETED
+                  - FAILED
+                  - CANCELLED
+              teif_xml:
+                type: string
+                description: The signed TEIF XML content
+              xml_hash:
+                type: string
+                description: Hash of the XML for verification
+              ttn_reference:
+                type: string
+                nullable: true
+                description: Tax Authority reference number (if submitted)
+              qr_code_base64:
+                type: string
+                nullable: true
+                description: QR code image in base64 format (if generated)
 
     ErrorResponse:
       type: object
@@ -549,9 +591,9 @@ paths:
       summary: Get the current status of a document
       description: |
         Retrieves the processing status of a submitted invoice.
-        Statuses include: SAVED, SIGNING_PENDING, SIGNING_FAILED,
-        SIGNING_COMPLETED, TTN_PENDING, TTN_SUBMITTED, TTN_ACCEPTED,
-        TTN_REJECTED, VERIFIED.
+        Statuses include: RECEIVED, SIGNING_PENDING, SIGNING_FAILED,
+        TTN_PENDING, TTN_SUBMITTED, TTN_ACCEPTED, TTN_REJECTED,
+        COMPLETED, FAILED, CANCELLED.
       tags:
         - Documents
       parameters:
@@ -572,6 +614,49 @@ paths:
                 $ref: "#/components/schemas/DocumentStatusResponse"
         "404":
           description: Document not found for the authenticated customer
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized - missing or invalid token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /documents/artifacts/{invoiceNumber}:
+    get:
+      summary: Get signed document artifacts
+      description: |
+        Retrieves the signed XML artifacts and metadata for a processed invoice document.
+        This includes the TEIF XML content, hash, TTN reference, and QR code (if available).
+      tags:
+        - Documents
+      parameters:
+        - name: invoiceNumber
+          in: path
+          required: true
+          schema:
+            type: string
+            minLength: 1
+          description: Invoice number to retrieve artifacts for
+          example: "INV-2026-001"
+      responses:
+        "200":
+          description: Document artifacts retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DocumentArtifactsResponse"
+        "404":
+          description: Document or artifacts not found for the authenticated customer
           content:
             application/json:
               schema:
