@@ -1,5 +1,17 @@
+import type { Selectable } from "kysely";
 import { randomUUID } from "node:crypto";
+import { db } from "../../db/client.js";
+import type { TkrCustomers } from "../../db/schema.js";
 import type { Document } from "../../schemas/document.schema.js";
+import {
+  TEST_CUSTOMER_ID,
+  TEST_NGSIGN_EMAIL,
+  TEST_NGSIGN_TOKEN,
+  TEST_TAX_ID,
+  TEST_TOKEN,
+} from "../consts.js";
+
+export type TestCustomer = Selectable<TkrCustomers> & { token: string };
 
 /**
  * E2E Test Utilities and Helpers
@@ -219,4 +231,95 @@ export function createCallbackPayload(status: string, overrides?: any) {
     timestamp: new Date().toISOString(),
     ...overrides,
   };
+}
+
+/**
+ * Setup: Create test customer and token
+ */
+export async function setupTestCustomer() {
+  try {
+    // Create customer
+    const customer = await db
+      .insertInto("tbl_tkr_customers")
+      .values({
+        id: TEST_CUSTOMER_ID,
+        name: "Test Customer",
+        tax_id: TEST_TAX_ID,
+        mode: "TEST",
+        ngsign_token: TEST_NGSIGN_TOKEN,
+        ngsign_signer_email: TEST_NGSIGN_EMAIL,
+        ttn_login: null, // No TTN login for tests
+        ttn_password: null, // No TTN password for tests
+        is_active: true,
+        created_at: new Date(),
+        updated_at: new Date(),
+      })
+      .returningAll()
+      .executeTakeFirst();
+
+    if (!customer) {
+      throw new Error("Failed to create test customer");
+    }
+
+    // Create token
+    await db
+      .insertInto("tbl_tkr_customer_tokens")
+      .values({
+        id: randomUUID(),
+        customer_id: TEST_CUSTOMER_ID,
+        token: TEST_TOKEN,
+        name: "Test Token",
+        is_active: true,
+        updated_at: new Date(),
+        created_at: new Date(),
+      })
+      .execute();
+
+    return { ...customer, token: TEST_TOKEN };
+  } catch (error) {
+    console.error("Error setting up test customer:", error);
+    throw error;
+  }
+}
+
+/**
+ * Cleanup: Delete test data
+ */
+export async function cleanupTestData() {
+  try {
+    // Delete tokens
+    await db
+      .deleteFrom("tbl_tkr_customer_tokens")
+      .where("customer_id", "=", TEST_CUSTOMER_ID)
+      .execute();
+
+    // Delete customer
+    await db
+      .deleteFrom("tbl_tkr_customers")
+      .where("id", "=", TEST_CUSTOMER_ID)
+      .execute();
+
+    // Delete test operations
+    await db
+      .deleteFrom("tbl_operations")
+      .where("customer_id", "=", TEST_CUSTOMER_ID)
+      .execute();
+  } catch (error) {
+    console.error("Error cleaning up test data:", error);
+    // Don't throw - cleanup errors shouldn't fail tests
+  }
+}
+
+/**
+ * Import and initialize the real app
+ */
+export async function initializeApp() {
+  try {
+    // Import the Express app setup
+    const { app } = await import("../../index.js");
+    return app;
+  } catch (error) {
+    console.error("Error initializing app:", error);
+    throw error;
+  }
 }

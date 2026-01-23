@@ -48,10 +48,8 @@
     "lint:fix": "eslint . --fix",
     "test": "tsx --test",
     "test:watch": "tsx --test --watch",
-    "test:e2e": "tsx --test 'src/__tests__/e2e/documents.e2e.test.ts' 'src/__tests__/e2e/examples.e2e.test.ts'",
-    "test:e2e:watch": "tsx --test --watch 'src/__tests__/e2e/documents.e2e.test.ts' 'src/__tests__/e2e/examples.e2e.test.ts'",
-    "test:e2e:real": "tsx --test --test-reporter=spec 'src/__tests__/e2e/**/*.real.e2e.test.ts'",
-    "test:e2e:real:watch": "tsx --test --watch 'src/__tests__/e2e/**/*.real.e2e.test.ts'",
+    "test:e2e": "tsx --test --test-reporter=spec --test-force-exit 'src/__tests__/e2e/**/*.e2e.test.ts'",
+    "test:e2e:watch": "tsx --test --watch 'src/__tests__/e2e/**/*.e2e.test.ts'",
     "clean": "rimraf dist"
   },
   "dependencies": {
