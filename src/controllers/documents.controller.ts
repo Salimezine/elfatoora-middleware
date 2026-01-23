@@ -293,7 +293,8 @@ export async function getDocumentStatus(
 
     if (!document) {
       res.status(404).json({
-        message: `Document with invoice number ${invoiceNumber} not found for the given operation.`,
+        code: "DOCUMENT_NOT_FOUND",
+        error: `Document with invoice number ${invoiceNumber} not found for the given operation.`,
       });
       return;
     }
@@ -348,7 +349,8 @@ export async function getDocumentArtifacts(
 
     if (artifacts.length === 0) {
       res.status(404).json({
-        message: `Artifacts for invoice number ${invoiceNumber} not found.`,
+        code: "ARTIFACTS_NOT_FOUND",
+        error: `No artifacts found for document with invoice number ${invoiceNumber}.`,
       });
       return;
     }
