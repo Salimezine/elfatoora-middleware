@@ -46,10 +46,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "tsx --test",
-    "test:watch": "tsx --test --watch",
+    "test": "tsx --test 'src/**/*.test.ts' '!src/**/*.e2e.test.ts'",
     "test:e2e": "tsx --test --test-reporter=spec --test-force-exit 'src/__tests__/e2e/**/*.e2e.test.ts'",
-    "test:e2e:watch": "tsx --test --watch 'src/__tests__/e2e/**/*.e2e.test.ts'",
     "clean": "rimraf dist"
   },
   "dependencies": {
