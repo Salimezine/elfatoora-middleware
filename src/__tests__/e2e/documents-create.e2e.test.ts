@@ -329,6 +329,8 @@ describe("POST /v1/documents - Create Documents", () => {
     const invalidInvoice = createValidInvoice();
     delete (invalidInvoice as any).buyer;
 
+    console.log("Invalid Invoice:", JSON.stringify(invalidInvoice, null, 2));
+
     const payload = {
       data: [{ invoice: invalidInvoice, pdf: generateFakePdfBase64() }],
       successUrl: null,
@@ -348,7 +350,7 @@ describe("POST /v1/documents - Create Documents", () => {
 
   it("should reject invoice with missing items", async () => {
     const invalidInvoice = createValidInvoice();
-    delete (invalidInvoice as any).items;
+    delete (invalidInvoice as any).lines;
 
     const payload = {
       data: [{ invoice: invalidInvoice, pdf: generateFakePdfBase64() }],
