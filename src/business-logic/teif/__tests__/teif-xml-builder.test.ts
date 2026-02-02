@@ -3,43 +3,91 @@ import { test } from "node:test";
 import type { TeifInvoiceXml } from "../teif-types.js";
 import { buildTeifXml } from "../teif-xml-builder.js";
 
-test("buildTeifXml - should build valid XML from invoice object", () => {
+test("buildTeifXml - should build valid XML from TEIF invoice object", () => {
   const input: TeifInvoiceXml = {
-    Invoice: {
-      Header: {
-        InvoiceNumber: "INV-001",
-        IssueDate: "2024-01-01",
-        InvoiceType: "388",
-        Currency: "TND",
+    TEIF: {
+      "@_version": "1.8.8",
+      "@_controlingAgency": "TTN",
+      InvoiceHeader: {
+        MessageSenderIdentifier: {
+          "@_type": "I-01",
+          "#text": "TAX123456",
+        },
+        MessageRecieverIdentifier: {
+          "@_type": "I-01",
+          "#text": "TAX654321",
+        },
       },
-      Seller: {} as any,
-      Buyer: {} as any,
-      Lines: { Line: [] },
-      Totals: {} as any,
+      InvoiceBody: {
+        Bgm: {
+          DocumentIdentifier: "INV-001",
+          DocumentType: {
+            "@_code": "I-11",
+            "#text": "Facture",
+          },
+        },
+        Dtm: {
+          DateText: [
+            {
+              "@_format": "ddMMyy",
+              "@_functionCode": "I-31",
+              "#text": "010124",
+            },
+          ],
+        },
+        PartnerSection: {
+          PartnerDetails: [],
+        },
+        LinSection: {
+          Lin: [],
+        },
+      },
     },
   };
 
   const result = buildTeifXml(input);
 
-  assert.ok(result.includes("<Invoice>"));
-  assert.ok(result.includes("</Invoice>"));
-  assert.ok(result.includes("<InvoiceNumber>INV-001</InvoiceNumber>"));
-  assert.ok(result.includes("<IssueDate>2024-01-01</IssueDate>"));
+  assert.ok(result.includes("<TEIF"));
+  assert.ok(result.includes("</TEIF>"));
+  assert.ok(
+    result.includes("<DocumentIdentifier>INV-001</DocumentIdentifier>"),
+  );
+  assert.ok(result.includes('version="1.8.8"'));
 });
 
 test("buildTeifXml - should suppress empty nodes", () => {
   const input: TeifInvoiceXml = {
-    Invoice: {
-      Header: {
-        InvoiceNumber: "INV-002",
-        IssueDate: "2024-01-01",
-        InvoiceType: "388",
-        Currency: "TND",
+    TEIF: {
+      "@_version": "1.8.8",
+      "@_controlingAgency": "TTN",
+      InvoiceHeader: {
+        MessageSenderIdentifier: {
+          "@_type": "I-01",
+          "#text": "TAX123456",
+        },
+        MessageRecieverIdentifier: {
+          "@_type": "I-01",
+          "#text": "TAX654321",
+        },
       },
-      Seller: {} as any,
-      Buyer: {} as any,
-      Lines: { Line: [] },
-      Totals: {} as any,
+      InvoiceBody: {
+        Bgm: {
+          DocumentIdentifier: "INV-002",
+          DocumentType: {
+            "@_code": "I-11",
+            "#text": "Facture",
+          },
+        },
+        Dtm: {
+          DateText: [],
+        },
+        PartnerSection: {
+          PartnerDetails: [],
+        },
+        LinSection: {
+          Lin: [],
+        },
+      },
     },
   };
 
@@ -48,44 +96,85 @@ test("buildTeifXml - should suppress empty nodes", () => {
   assert.ok(!result.includes("<Description>"));
 });
 
-test("buildTeifXml - should handle attributes", () => {
-  const input = {
-    Invoice: {
-      "@_version": "1.0",
-      Header: {
-        InvoiceNumber: "INV-003",
-        IssueDate: "2024-01-01",
-        InvoiceType: "388",
-        Currency: "TND",
+test("buildTeifXml - should handle attributes correctly", () => {
+  const input: TeifInvoiceXml = {
+    TEIF: {
+      "@_version": "1.8.8",
+      "@_controlingAgency": "TTN",
+      InvoiceHeader: {
+        MessageSenderIdentifier: {
+          "@_type": "I-01",
+          "#text": "TAX123456",
+        },
+        MessageRecieverIdentifier: {
+          "@_type": "I-01",
+          "#text": "TAX654321",
+        },
       },
-      Seller: {} as any,
-      Buyer: {} as any,
-      Lines: { Line: [] },
-      Totals: {} as any,
+      InvoiceBody: {
+        Bgm: {
+          DocumentIdentifier: "INV-003",
+          DocumentType: {
+            "@_code": "I-11",
+            "#text": "Facture",
+          },
+        },
+        Dtm: {
+          DateText: [],
+        },
+        PartnerSection: {
+          PartnerDetails: [],
+        },
+        LinSection: {
+          Lin: [],
+        },
+      },
     },
   };
 
-  const result = buildTeifXml(input as any);
+  const result = buildTeifXml(input);
 
-  assert.ok(result.includes('version="1.0"'));
+  assert.ok(result.includes('version="1.8.8"'));
+  assert.ok(result.includes('controlingAgency="TTN"'));
 });
 
 test("buildTeifXml - should return string", () => {
   const input: TeifInvoiceXml = {
-    Invoice: {
-      Header: {
-        InvoiceNumber: "INV-004",
-        IssueDate: "2024-01-01",
-        InvoiceType: "388",
-        Currency: "TND",
+    TEIF: {
+      "@_version": "1.8.8",
+      "@_controlingAgency": "TTN",
+      InvoiceHeader: {
+        MessageSenderIdentifier: {
+          "@_type": "I-01",
+          "#text": "TAX123456",
+        },
+        MessageRecieverIdentifier: {
+          "@_type": "I-01",
+          "#text": "TAX654321",
+        },
       },
-      Seller: {} as any,
-      Buyer: {} as any,
-      Lines: { Line: [] },
-      Totals: {} as any,
+      InvoiceBody: {
+        Bgm: {
+          DocumentIdentifier: "INV-004",
+          DocumentType: {
+            "@_code": "I-11",
+            "#text": "Facture",
+          },
+        },
+        Dtm: {
+          DateText: [],
+        },
+        PartnerSection: {
+          PartnerDetails: [],
+        },
+        LinSection: {
+          Lin: [],
+        },
+      },
     },
   };
   const result = buildTeifXml(input);
 
   assert.strictEqual(typeof result, "string");
+  assert.ok(result.startsWith('<?xml version="1.0" encoding="UTF-8"?>'));
 });
