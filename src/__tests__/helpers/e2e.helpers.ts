@@ -1,5 +1,6 @@
 import type { Selectable } from "kysely";
 import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { db } from "../../db/client.js";
 import type { TkrCustomers } from "../../db/schema.js";
 import type { Document } from "../../schemas/document.schema.js";
@@ -89,11 +90,12 @@ export function createTestPayload(
     failureUrl: string | null;
   }>,
 ) {
+  const pdfBase64 = generateFakePdfBase64();
   return {
     data: [
       {
         invoice: createValidInvoice(),
-        pdf: "JVBERi0xLjQKJeLjz9MNCjEgMCBvYmo=", // Base64 encoded minimal PDF
+        pdf: pdfBase64,
       },
     ],
     successUrl: null,
@@ -173,8 +175,9 @@ export function sleep(ms: number): Promise<void> {
  * Generates a fake PDF in base64 format
  */
 export function generateFakePdfBase64(): string {
-  // Minimal valid PDF structure in base64
-  return "JVBERi0xLjQKJeLjz9MNCjEgMCBvYmoKPDwgL1R5cGUgL0NhdGFsb2cgL1BhZ2VzIDIgMCBSID4+CmVuZG9iagoyIDAgb2JqCjw8IC9UeXBlIC9QYWdlcyAvS2lkcyBbMyAwIFJdIC9Db3VudCAxID4+CmVuZG9iagozIDAgb2JqCjw8IC9UeXBlIC9QYWdlIC9QYXJlbnQgMiAwIFIgL1Jlc291cmNlcyA8PCA+PiAvTWVkaWFCb3ggWzAgMCA2MTIgNzkyXSAvQ29udGVudHMgNDAgMCBSID4+CmVuZG9iagpzdGFydHhmcmVmCjQzCiUlRU9G";
+  const pdf = readFileSync("./src/__tests__/helpers/sample-local-pdf.pdf");
+  // Convert binary data to Base64 encoded string
+  return pdf.toString("base64");
 }
 
 /**
