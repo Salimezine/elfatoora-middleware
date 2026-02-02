@@ -47,7 +47,7 @@ export async function createSignatureTransaction(
 ) {
   const payload: NGXMLCreationInvoiceUpload = {
     invoices: input.invoices.map((inv) => {
-      const xmlBuffer = Buffer.from(inv.teifXmlContent, "base64");
+      const xmlBuffer = Buffer.from(inv.teifXmlContent, "utf-8");
       return {
         invoiceTIEF: toBase64(xmlBuffer),
         invoiceFileB64: inv.pdfContent,
