@@ -4,6 +4,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string(),
   PUBLIC_BASE_URL: z.string(),
   TTN_HANDLING_MODE: z.enum(["WS", "SFTP"]),
+  GLOBAL_API_KEY: z.string().min(1).default("dev-global-api-key"),
 });
 
 let envVars: z.infer<typeof envSchema>;

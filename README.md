@@ -85,6 +85,9 @@ DATABASE_URL=postgresql://postgres:postgres@localhost:5432/e_fatoura
 
 # Public URLs
 PUBLIC_BASE_URL=http://localhost:3000
+
+# Global API key used by /v1/clients management endpoints
+GLOBAL_API_KEY=replace-with-a-strong-secret
 ```
 
 ### 3. Database Setup
@@ -141,6 +144,14 @@ pnpm run lint:fix
 - `POST /v1/documents` - Submit a new invoice document for signing
 - `POST /v1/documents/callback/:status` - Callback endpoint for ngSign (success/failure)
   See [docs/API.md](docs/API.md) for detailed endpoint specifications.
+
+### Clients Management Controller
+
+- `POST /v1/clients` - Create a client and generate a new API token
+- `PATCH /v1/clients/:taxId` - Update client mode/ngsign/ttn settings
+- `DELETE /v1/clients/:taxId` - Remove a client
+
+These endpoints are protected with `x-api-key` using `GLOBAL_API_KEY`.
 
 ### TTN Integration
 
@@ -203,6 +214,7 @@ All configuration is managed through environment variables. Key variables:
 - `NODE_ENV`: Application environment (development/production)
 - `PORT`: Server port (default: 3000)
 - `DB_*`: Database connection parameters
+- `GLOBAL_API_KEY`: Shared secret for `/v1/clients` management endpoints
 
 ## Performance
 

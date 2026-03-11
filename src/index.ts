@@ -55,6 +55,8 @@ app.use(async (req: Request, res: Response, next: NextFunction) => {
   // Exempt webhook callbacks from auth
   if (req.path.startsWith(`/v${API_VERSION}/documents/callback/`))
     return next();
+  // Exempt clients management endpoints (protected by global API key middleware)
+  if (req.path.startsWith(`/v${API_VERSION}/clients`)) return next();
 
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -83,7 +85,7 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+    "Origin, X-Requested-With, Content-Type, Accept, Authorization, X-API-Key",
   );
   res.header(
     "Access-Control-Allow-Methods",

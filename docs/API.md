@@ -10,11 +10,34 @@ http://localhost:3000/v1
 
 ## Authentication
 
-All API endpoints require authentication via API key in the `Authorization` header:
+This API uses two authentication mechanisms:
+
+### 1. Customer API Token (Documents endpoints)
+
+Use the customer token in the `Authorization` header:
 
 ```
 Authorization: Bearer <API_KEY>
 ```
+
+Applies to:
+
+- `/documents`
+- `/documents/status/:invoiceNumber`
+- `/documents/artifacts/:invoiceNumber`
+
+### 2. Global API Key (Clients management endpoints)
+
+Use the global API key in the `x-api-key` header:
+
+```
+x-api-key: <GLOBAL_API_KEY>
+```
+
+Applies to:
+
+- `/clients`
+- `/clients/:taxId`
 
 ## Response Format
 
@@ -271,6 +294,179 @@ Retrieve the signed XML artifacts and metadata for a processed invoice document.
 
 ---
 
+### 5. Create Client
+
+**Endpoint:** `POST /clients`
+
+Creates a new client (if not existing), generates a customer API token, and returns it.
+
+#### Authentication
+
+- Header: `x-api-key: <GLOBAL_API_KEY>`
+
+#### Request Body
+
+```typescript
+{
+  name: string,
+  taxId: string,
+  api: string,
+  mode?: "test" | "prod",
+  ngsign_token?: string,
+  ngsign_signer_email?: string,
+  ttn_login?: string,
+  ttn_password?: string,
+}
+```
+
+#### Request Example
+
+```json
+{
+  "name": "Acme Tunisia",
+  "taxId": "1234567AAM000",
+  "api": "Main API",
+  "mode": "test",
+  "ngsign_token": "ngsign-token-value",
+  "ngsign_signer_email": "signer@acme.tn",
+  "ttn_login": "acme-ttn",
+  "ttn_password": "secret"
+}
+```
+
+#### Response
+
+**Status Code:** `201 Created`
+
+```json
+{
+  "message": "Client created successfully",
+  "client": {
+    "id": "uuid",
+    "name": "Acme Tunisia",
+    "taxId": "1234567AAM000",
+    "mode": "test"
+  },
+  "token": {
+    "name": "Main API",
+    "value": "generated-api-token"
+  }
+}
+```
+
+#### Status Codes
+
+- `201 Created` - Client created and token generated
+- `400 Bad Request` - Invalid payload
+- `401 Unauthorized` - Invalid or missing global API key
+- `409 Conflict` - Client already exists
+
+---
+
+### 6. Update Client
+
+**Endpoint:** `PATCH /clients/:taxId`
+
+Updates client configuration values.
+
+#### Authentication
+
+- Header: `x-api-key: <GLOBAL_API_KEY>`
+
+#### URL Parameters
+
+- `taxId` (required): Client tax identifier
+
+#### Request Body
+
+At least one field is required:
+
+```typescript
+{
+  mode?: "test" | "prod",
+  ngsign_token?: string,
+  ngsign_signer_email?: string,
+  ttn_login?: string | null,
+  ttn_password?: string | null,
+}
+```
+
+#### Request Example
+
+```json
+{
+  "mode": "prod",
+  "ngsign_token": "new-ngsign-token",
+  "ngsign_signer_email": "ops@acme.tn",
+  "ttn_login": "acme-ttn-prod"
+}
+```
+
+#### Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Client updated successfully",
+  "client": {
+    "id": "uuid",
+    "name": "Acme Tunisia",
+    "taxId": "1234567AAM000",
+    "mode": "prod",
+    "ngsign_token": "new-ngsign-token",
+    "ngsign_signer_email": "ops@acme.tn",
+    "ttn_login": "acme-ttn-prod"
+  }
+}
+```
+
+#### Status Codes
+
+- `200 OK` - Client updated
+- `400 Bad Request` - Invalid payload
+- `401 Unauthorized` - Invalid or missing global API key
+- `404 Not Found` - Client not found
+
+---
+
+### 7. Remove Client
+
+**Endpoint:** `DELETE /clients/:taxId`
+
+Deletes a client and associated API tokens.
+
+#### Authentication
+
+- Header: `x-api-key: <GLOBAL_API_KEY>`
+
+#### URL Parameters
+
+- `taxId` (required): Client tax identifier
+
+#### Response
+
+**Status Code:** `200 OK`
+
+```json
+{
+  "message": "Client removed successfully",
+  "client": {
+    "id": "uuid",
+    "name": "Acme Tunisia",
+    "taxId": "1234567AAM000"
+  }
+}
+```
+
+#### Status Codes
+
+- `200 OK` - Client removed
+- `401 Unauthorized` - Invalid or missing global API key
+- `404 Not Found` - Client not found
+
+---
+
 ## Document Schema
 
 The invoice document follows this schema:
@@ -348,6 +544,9 @@ The invoice document follows this schema:
 | `TAX_ID_MISMATCH`        | Seller tax ID does not match authenticated user | 403         |
 | `DOCUMENT_NOT_FOUND`     | Requested document not found                    | 404         |
 | `OPERATION_NOT_FOUND`    | Operation not found                             | 404         |
+| `UNAUTHORIZED`           | Missing or invalid token / API key              | 401         |
+| `CONFLICT`               | Resource already exists                         | 409         |
+| `VALIDATION_ERROR`       | Request validation failed                       | 400         |
 | `SIGNING_FAILED`         | Document signing failed                         | 500         |
 | `TTN_SUBMISSION_FAILED`  | Failed to submit to Tax Authority               | 500         |
 | `DATABASE_ERROR`         | Database operation failed                       | 500         |
