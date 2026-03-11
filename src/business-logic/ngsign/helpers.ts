@@ -7,10 +7,10 @@ export const ngSignUrls = {
 };
 
 export const ngSignBase = (path: string, mode: "PROD" | "TEST" = "TEST") => {
-  const base = mode === "PROD" ? ngSignUrls.production : ngSignUrls.sandbox;
+  let base = mode === "PROD" ? ngSignUrls.production : ngSignUrls.sandbox;
   // Remove /server from the path if it exists
-  if (mode === "PROD") {
-    path = path.replace(/^\/?server\/?/, "");
+  if (mode === "TEST") {
+    base = base.replace(/\/?server\/?/, "");
   }
   return urlJoin(base, path);
 };
