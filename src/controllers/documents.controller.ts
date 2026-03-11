@@ -3,6 +3,7 @@ import type { ControlledTransaction } from "kysely";
 import z from "zod";
 import {
   createIncomingDocumentsTransaction,
+  findExistingDocuments,
   savedDocAfterSign,
   saveIncomingDocumentArtifact,
   saveIncomingDocuments,
@@ -13,6 +14,7 @@ import {
   createSignatureTransaction,
   type CreateSignatureTransactionInput,
 } from "../business-logic/ngsign/create-transaction.js";
+import { ngSignBase } from "../business-logic/ngsign/helpers.js";
 import type { WebhookPayload } from "../business-logic/ngsign/ngsign-api.js";
 import { mapInvoiceToTeifXml } from "../business-logic/teif/map-json-to-teif.js";
 import { buildTeifXml } from "../business-logic/teif/teif-xml-builder.js";
@@ -45,6 +47,38 @@ export async function createDocuments(
 
   try {
     const payload = DocumentsApiSchema.parse(req.body);
+
+    // Check for duplicate invoices before creating the operation
+    const documentNumbers = payload.data.map(
+      (d) => d.invoice.header.documentNumber,
+    );
+    const existingDocs = await findExistingDocuments(
+      db,
+      documentNumbers,
+      req.context.customer.tax_id,
+    );
+    if (existingDocs.length > 0) {
+      const pendingDoc = existingDocs.find(
+        (d) => d.status === "SIGNING_PENDING" && d.ngsign_uuid,
+      );
+      if (pendingDoc) {
+        res.status(409).json({
+          message:
+            "Invoice already submitted and pending signature, please redirect user to sign.",
+          signatureUUID: pendingDoc.ngsign_uuid,
+          signatureUrl: ngSignBase(
+            `/pds/#/teif/invoice/${pendingDoc.ngsign_uuid}`,
+            req.context.customer.mode,
+          ),
+        });
+        return;
+      }
+      throw new TkrAppError(
+        409,
+        `Invoice ${existingDocs[0]!.document_number} already exists with status ${existingDocs[0]!.status}`,
+        "DUPLICATE_INVOICE",
+      );
+    }
 
     // Create a transaction
     opId = await createIncomingDocumentsTransaction(

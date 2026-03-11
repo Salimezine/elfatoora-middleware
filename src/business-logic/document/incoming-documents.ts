@@ -157,6 +157,31 @@ export async function saveIncomingDocumentArtifact(
   }
 }
 
+export async function findExistingDocuments(
+  db: Kysely<DB>,
+  documentNumbers: string[],
+  sellerTaxId: string,
+) {
+  if (documentNumbers.length === 0) return [];
+
+  return db
+    .selectFrom(tbl("documents"))
+    .innerJoin(
+      tbl("operations"),
+      `${tbl("documents")}.operation_id`,
+      `${tbl("operations")}.id`,
+    )
+    .select([
+      `${tbl("documents")}.id`,
+      `${tbl("documents")}.document_number`,
+      `${tbl("documents")}.status`,
+      `${tbl("operations")}.ngsign_uuid`,
+    ])
+    .where(`${tbl("documents")}.document_number`, "in", documentNumbers)
+    .where(`${tbl("documents")}.seller_tax_id`, "=", sellerTaxId)
+    .execute();
+}
+
 export async function setNGSignUUID(
   db: Kysely<DB>,
   operationId: string,
