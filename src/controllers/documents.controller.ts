@@ -1,5 +1,6 @@
 import type { NextFunction, Request, Response } from "express";
 import type { ControlledTransaction } from "kysely";
+import { randomUUID } from "node:crypto";
 import z from "zod";
 import {
   createIncomingDocumentsTransaction,
@@ -21,7 +22,7 @@ import { buildTeifXml } from "../business-logic/teif/teif-xml-builder.js";
 import { db, tbl } from "../db/client.js";
 import type { DB } from "../db/schema.js";
 import { DocumentSchema } from "../schemas/document.schema.js";
-import { publicUrl } from "../utils/env.utils.js";
+import { env, publicUrl } from "../utils/env.utils.js";
 import { TkrAppError } from "../utils/error.utils.js";
 
 /**
@@ -157,6 +158,33 @@ export async function createDocuments(
 
     // Generate internal callback URLs and store callback records
     const hash = Buffer.from(opId).toString("base64");
+
+    if (env().NGSIGN_SKIP) {
+      const fakeUuid = randomUUID();
+      await setNGSignUUID(db, opId, fakeUuid);
+      const trx = await db.startTransaction().execute();
+      try {
+        for (const inv of invoices) {
+          await savedDocAfterSign(
+            trx,
+            opId!,
+            inv.invoiceNumber,
+            inv.teifXmlContent,
+          );
+        }
+        await trx.commit().execute();
+      } catch (err) {
+        await trx.rollback().execute();
+        throw err;
+      }
+      res.status(202).json({
+        message: "Invoice accepted (NGSign simulation mode).",
+        signatureUUID: fakeUuid,
+        signatureUrl: null,
+      });
+      return;
+    }
+
     const signResponse = await createSignatureTransaction(
       {
         invoices,

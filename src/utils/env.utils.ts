@@ -5,6 +5,10 @@ const envSchema = z.object({
   PUBLIC_BASE_URL: z.string(),
   TTN_HANDLING_MODE: z.enum(["WS", "SFTP"]),
   GLOBAL_API_KEY: z.string().min(1).default("dev-global-api-key"),
+  NGSIGN_SKIP: z
+    .string()
+    .default("false")
+    .transform((v) => v === "true" || v === "1"),
 });
 
 let envVars: z.infer<typeof envSchema>;
