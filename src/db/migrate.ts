@@ -1,14 +1,27 @@
 import { promises as fs } from "fs";
-import { FileMigrationProvider, Migrator } from "kysely";
+import { FileMigrationProvider, Migrator } from "kysely/migration";
 import path from "path";
 import { db } from "./client.js";
+
+const migrationFolder = path.join(
+  process.cwd(),
+  process.env["MIGRATION_DIR"] ?? "src/db/migrations",
+);
+
+const fileUrlImport = (filePath: string) => {
+  const url = filePath.startsWith("file://")
+    ? filePath
+    : "file:///" + filePath.replace(/\\/g, "/");
+  return import(url);
+};
 
 const migrator = new Migrator({
   db,
   provider: new FileMigrationProvider({
     fs,
     path,
-    migrationFolder: path.join(process.cwd(), "src/db/migrations"),
+    migrationFolder,
+    import: fileUrlImport,
   }),
 });
 
