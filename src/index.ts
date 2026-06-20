@@ -57,17 +57,18 @@ app.get("/health/ttn", async (_req, res) => {
   try {
     const url = new URL(ttnUrl);
     const port = parseInt(url.port, 10) || (url.protocol === "https:" ? 443 : 80);
-    await new Promise<void>((resolve, reject) => {
-      const socket = tcpConnect(port, url.hostname, { timeout: ttnTimeout });
-      const timer = setTimeout(() => { socket.destroy(); reject(new Error("timeout")); }, ttnTimeout);
-      socket.on("connect", () => {
-        clearTimeout(timer);
-        soapLatency = Date.now() - start;
-        socket.destroy();
-        resolve();
+      await new Promise<void>((resolve, reject) => {
+        const socket = tcpConnect(port, url.hostname);
+        const timer = setTimeout(() => { socket.destroy(); reject(new Error("timeout")); }, ttnTimeout);
+        socket.setTimeout(ttnTimeout);
+        socket.on("connect", () => {
+          clearTimeout(timer);
+          soapLatency = Date.now() - start;
+          socket.destroy();
+          resolve();
+        });
+        socket.on("error", (err) => { clearTimeout(timer); reject(err); });
       });
-      socket.on("error", (err) => { clearTimeout(timer); reject(err); });
-    });
     soapStatus = "reachable";
   } catch (err) {
     soapStatus = "down";
@@ -81,8 +82,9 @@ app.get("/health/ttn", async (_req, res) => {
       const url = new URL(`tcp://${sftpHost}`);
       const port = parseInt(url.port, 10) || 22;
       await new Promise<void>((resolve, reject) => {
-        const socket = tcpConnect(port, url.hostname, { timeout: 5000 });
+        const socket = tcpConnect(port, url.hostname);
         const timer = setTimeout(() => { socket.destroy(); reject(new Error("timeout")); }, 5000);
+        socket.setTimeout(5000);
         socket.on("connect", () => { clearTimeout(timer); socket.destroy(); resolve(); });
         socket.on("error", (err) => { clearTimeout(timer); reject(err); });
       });

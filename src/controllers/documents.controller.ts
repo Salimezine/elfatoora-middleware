@@ -130,7 +130,7 @@ export async function createDocuments(
 
       invoices.push({
         invoiceNumber: item.invoice.header.documentNumber,
-        pdfContent: item.pdf,
+        pdfContent: item.pdf ?? "",
         teifXmlContent: teifXml,
         callbackUrl: {
           successUrl: publicUrl(`/v1/documents/callback/success?hash=${hash}`),
