@@ -1,5 +1,9 @@
 import assert from "node:assert";
 import { afterEach, beforeEach, describe, it } from "node:test";
+// Set required env vars for env() before any module import that calls it
+process.env.DATABASE_URL = "postgres://test:test@localhost:5432/test";
+process.env.PUBLIC_BASE_URL = "http://localhost:3000";
+process.env.TTN_HANDLING_MODE = "WS";
 import { consultDocumentWS } from "../consult-doc.js";
 
 describe("consultDocumentWS", () => {

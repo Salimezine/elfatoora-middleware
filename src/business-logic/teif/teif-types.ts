@@ -217,17 +217,30 @@ export interface TeifSignature {
 }
 
 export interface TeifSignedInfo {
-  CanonicalizationMethod: { "@_Algorithm": string };
-  SignatureMethod: { "@_Algorithm": string };
+  CanonicalizationMethod: { "@_Algorithm": TeifCanonAlgo };
+  SignatureMethod: { "@_Algorithm": TeifSigMethodAlgo };
   Reference: TeifSignatureReference[];
 }
 
+export type TeifCanonAlgo = "http://www.w3.org/2001/10/xml-exc-c14n#";
+export type TeifSigMethodAlgo =
+  | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"
+  | "http://www.w3.org/2001/04/xmldsig-more#rsa-sha512"
+  | string;
+export type TeifDigestMethodAlgo =
+  | "http://www.w3.org/2001/04/xmlenc#sha256"
+  | "http://www.w3.org/2001/04/xmldsig-more#sha256"
+  | string;
+
 export interface TeifSignatureReference {
   "@_Id": string;
-  "@_Type": string;
+  "@_Type":
+    | "http://www.w3.org/2000/09/xmldsig#Object"
+    | "http://www.w3.org/TR/2001/REC-xml-c14n-20010315"
+    | string;
   "@_URI": string;
-  Transforms?: { Transform: Array<{ "@_Algorithm": string }> };
-  DigestMethod: { "@_Algorithm": string };
+  Transforms?: { Transform: Array<{ "@_Algorithm": TeifCanonAlgo | string }> };
+  DigestMethod: { "@_Algorithm": TeifDigestMethodAlgo };
   DigestValue: string;
 }
 
@@ -253,8 +266,46 @@ export interface TeifQualifyingProperties {
 }
 
 export interface TeifSignedProperties {
-  SignedSignatureProperties?: unknown;
+  SignedSignatureProperties?: TeifSignedSignatureProperties;
   SignedDataObjectProperties?: unknown;
+}
+
+export interface TeifSignedSignatureProperties {
+  SigningTime?: string;
+  SigningCertificate?: TeifSigningCertificate;
+  SigningPolicyIdentifier?: TeifSigningPolicyIdentifier;
+  SignatureProductionPlace?: unknown;
+  SignerRole?: unknown;
+}
+
+export interface TeifSigningCertificate {
+  Cert?: TeifCert | TeifCert[];
+  /** XAdES: l'empreinte du certificat */
+  DigestMethod?: { "@_Algorithm": string };
+  DigestValue?: string;
+  /** Identifiant du certificat (émetteur + numéro série) */
+  IssuerSerial?: TeifIssuerSerial;
+}
+
+export interface TeifCert {
+  CertDigest?: {
+    DigestMethod: { "@_Algorithm": string };
+    DigestValue: string;
+  };
+  IssuerSerial?: TeifIssuerSerial;
+}
+
+export interface TeifIssuerSerial {
+  X509IssuerName?: string;
+  X509SerialNumber?: string;
+}
+
+export interface TeifSigningPolicyIdentifier {
+  SigPolicyId?: { "#text": string; "@_OID"?: string };
+  SigPolicyHash?: {
+    DigestMethod: { "@_Algorithm": string };
+    DigestValue: string;
+  };
 }
 
 export interface TeifRefTtnVal {

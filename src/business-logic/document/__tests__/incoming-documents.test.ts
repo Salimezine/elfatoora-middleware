@@ -565,6 +565,7 @@ describe("incoming-documents", () => {
 
     it("should update artifact with signed XML", async () => {
       let updatedData: any;
+      let callCount = 0;
       const mockTrx = {
         selectFrom: () => ({
           select: () => ({
@@ -580,7 +581,8 @@ describe("incoming-documents", () => {
         }),
         updateTable: () => ({
           set: (data: any) => {
-            updatedData = data;
+            if (callCount === 0) updatedData = data;
+            callCount++;
             return {
               where: () => ({
                 execute: async () => undefined,
@@ -644,6 +646,7 @@ describe("incoming-documents", () => {
 
     it("should compute correct XML hash", async () => {
       let updatedData: any;
+      let callCount = 0;
       const mockTrx = {
         selectFrom: () => ({
           select: () => ({
@@ -659,7 +662,8 @@ describe("incoming-documents", () => {
         }),
         updateTable: () => ({
           set: (data: any) => {
-            updatedData = data;
+            if (callCount === 0) updatedData = data;
+            callCount++;
             return {
               where: () => ({
                 execute: async () => undefined,
@@ -677,7 +681,7 @@ describe("incoming-documents", () => {
       const xmlBase64 = "base64encodedxml";
       const expectedHash = crypto
         .createHash("sha256")
-        .update(xmlBase64)
+        .update(Buffer.from(xmlBase64, "base64"))
         .digest("hex");
 
       await savedDocAfterSign(mockTrx, "op-123", "INV-001", xmlBase64);

@@ -30,7 +30,7 @@ import { TkrAppError } from "../utils/error.utils.js";
  */
 export const DocumentsApiSchema = z.object({
   data: z
-    .array(z.object({ invoice: DocumentSchema, pdf: z.string().optional().default("") }))
+    .array(z.object({ invoice: DocumentSchema, pdf: z.string().min(1).optional() }))
     .min(1),
   successUrl: z.url().nullable(),
   failureUrl: z.url().nullable(),

@@ -55,7 +55,7 @@ describe("createSignatureTransaction", () => {
 
         assert.strictEqual(result.uuid, testUuid);
         assert.ok(result.url.includes(testUuid));
-        assert.ok(result.url.includes("https://sandbox.ngsign.com"));
+        assert.ok(result.url.includes("https://sandbox.ng-sign.com"));
       } finally {
         globalThis.fetch = originalFetch;
       }
@@ -253,7 +253,7 @@ describe("createSignatureTransaction", () => {
 
         await createSignatureTransaction(input, "test-token", "PROD");
 
-        assert.ok(capturedUrl?.includes("https://api.ngsign.com"));
+        assert.ok(capturedUrl?.includes("https://api.ng-sign.com"));
       } finally {
         globalThis.fetch = originalFetch;
       }
@@ -296,7 +296,7 @@ describe("createSignatureTransaction", () => {
 
         await createSignatureTransaction(input, "test-token");
 
-        assert.ok(capturedUrl?.includes("https://sandbox.ngsign.com"));
+        assert.ok(capturedUrl?.includes("https://sandbox.ng-sign.com"));
       } finally {
         globalThis.fetch = originalFetch;
       }

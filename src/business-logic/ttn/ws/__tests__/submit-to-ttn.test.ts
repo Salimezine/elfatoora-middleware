@@ -1,6 +1,10 @@
 import * as assert from "node:assert";
 import { Buffer } from "node:buffer";
 import { describe, test } from "node:test";
+// Set required env vars for env() before any module import that calls it
+process.env.DATABASE_URL = "postgres://test:test@localhost:5432/test";
+process.env.PUBLIC_BASE_URL = "http://localhost:3000";
+process.env.TTN_HANDLING_MODE = "WS";
 import { submitToTTN, TTNCredentials } from "../submit-to-ttn";
 
 describe("submitToTTN", () => {

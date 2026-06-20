@@ -238,7 +238,7 @@ export async function savedDocAfterSign(
     .updateTable(tbl("documents_artifacts"))
     .set({
       teif_xml: xmlBase64,
-      xml_hash: crypto.createHash("sha256").update(xmlBase64).digest("hex"),
+      xml_hash: crypto.createHash("sha256").update(Buffer.from(xmlBase64, "base64")).digest("hex"),
       certificate_issuer: "NGSign",
       signed_at: new Date(),
     })
