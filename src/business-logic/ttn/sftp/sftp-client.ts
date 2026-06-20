@@ -21,8 +21,8 @@ export class SftpManager {
   constructor(config: SftpConnectionConfig) {
     this.client = new SftpClient();
     this.config = {
-      host: "",
-      port: 22,
+      host: process.env.TTN_SFTP_HOST || "",
+      port: parseInt(process.env.TTN_SFTP_PORT || "22", 10) || 22,
       ...config,
       readyTimeout: config.readyTimeout || 30000,
       autoClose: config.autoClose !== false,

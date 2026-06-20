@@ -1,4 +1,5 @@
 import { Buffer } from "node:buffer";
+import { env } from "../../../utils/env.utils.js";
 
 export interface TTNCredentials {
   login: string;
@@ -11,9 +12,6 @@ export interface TTNSubmitResult {
   rawResponse: string;
   error?: string;
 }
-
-const DEFAULT_TTN_ENDPOINT =
-  "http://elfatoura.tradenet.com.tn:80/ElfatouraServices/EfactService";
 
 /**
  * Submit a signed TEIF XML invoice to TTN (El Fatoora)
@@ -30,7 +28,8 @@ export async function submitToTTN(
       ? Buffer.from(signedTeifXml, "utf8")
       : signedTeifXml;
 
-  const response = await fetch(DEFAULT_TTN_ENDPOINT, {
+  const endpoint = env().TTN_SOAP_URL;
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "text/xml; charset=utf-8",

@@ -1,9 +1,9 @@
 FROM node:24-alpine AS builder
 WORKDIR /app
 RUN npm install -g pnpm
-COPY pnpm-lock.yaml package.json ./
+COPY pnpm-lock.yaml package.json tsconfig.json ./
 RUN pnpm install --frozen-lockfile
-COPY tsconfig.json src/ ./src/
+COPY src/ ./src/
 RUN pnpm run build
 RUN pnpm prune --prod
 

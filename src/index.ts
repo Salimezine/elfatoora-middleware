@@ -3,12 +3,13 @@ import "dotenv/config";
 import type { NextFunction, Request, Response } from "express";
 import express, { type Express } from "express";
 import { randomUUID } from "node:crypto";
+import { connect as tcpConnect } from "node:net";
 import { ZodError } from "zod";
 import { verifyToken } from "./business-logic/auth/token.js";
 import { initializeCronJobs, stopCronJobs } from "./cron/index.js";
 import type { TkrCustomers } from "./db/schema.js";
 import { router } from "./routes/index.js";
-import { validateRequiredEnvVars } from "./utils/env.utils.js";
+import { env, validateRequiredEnvVars } from "./utils/env.utils.js";
 import { TkrAppError } from "./utils/error.utils.js";
 import { normalizeValidationErrors } from "./utils/zod.utils.js";
 
@@ -42,6 +43,68 @@ app.get("/health", (_req, res) => {
   });
 });
 
+// Health — TTN connectivity
+let lastTtnCheck: number | null = null;
+const TTN_SOAP_DEFAULT = "http://elfatoura.tradenet.com.tn:80/ElfatouraServices/EfactService";
+app.get("/health/ttn", async (_req, res) => {
+  const start = Date.now();
+  const ttnUrl = env().TTN_SOAP_URL || TTN_SOAP_DEFAULT;
+  const ttnTimeout = env().TTN_SOAP_TIMEOUT || 10000;
+  let soapStatus: string, sftpStatus: string;
+  let soapLatency: number | null = null;
+
+  // Probe SOAP endpoint via TCP connect (no TLS, raw socket)
+  try {
+    const url = new URL(ttnUrl);
+    const port = parseInt(url.port, 10) || (url.protocol === "https:" ? 443 : 80);
+    await new Promise<void>((resolve, reject) => {
+      const socket = tcpConnect(port, url.hostname, { timeout: ttnTimeout });
+      const timer = setTimeout(() => { socket.destroy(); reject(new Error("timeout")); }, ttnTimeout);
+      socket.on("connect", () => {
+        clearTimeout(timer);
+        soapLatency = Date.now() - start;
+        socket.destroy();
+        resolve();
+      });
+      socket.on("error", (err) => { clearTimeout(timer); reject(err); });
+    });
+    soapStatus = "reachable";
+  } catch (err) {
+    soapStatus = "down";
+    soapLatency = null;
+  }
+
+  // SFTP check — verify host is configured
+  const sftpHost = env().TTN_SFTP_HOST || "";
+  if (sftpHost) {
+    try {
+      const url = new URL(`tcp://${sftpHost}`);
+      const port = parseInt(url.port, 10) || 22;
+      await new Promise<void>((resolve, reject) => {
+        const socket = tcpConnect(port, url.hostname, { timeout: 5000 });
+        const timer = setTimeout(() => { socket.destroy(); reject(new Error("timeout")); }, 5000);
+        socket.on("connect", () => { clearTimeout(timer); socket.destroy(); resolve(); });
+        socket.on("error", (err) => { clearTimeout(timer); reject(err); });
+      });
+      sftpStatus = "reachable";
+    } catch {
+      sftpStatus = "down";
+    }
+  } else {
+    sftpStatus = "unconfigured";
+  }
+
+  lastTtnCheck = Date.now();
+
+  res.status(200).json({
+    soap: { status: soapStatus, endpoint: ttnUrl, latency_ms: soapLatency },
+    sftp: { status: sftpStatus, host: sftpHost || null },
+    ttn_handling_mode: env().TTN_HANDLING_MODE,
+    last_check: new Date(lastTtnCheck).toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // Add global auth using token and inject the customer into the context
 declare global {
   namespace Express {
@@ -51,7 +114,7 @@ declare global {
   }
 }
 app.use(async (req: Request, res: Response, next: NextFunction) => {
-  if (req.path === "/health") return next();
+  if (req.path.startsWith("/health")) return next();
   // Exempt webhook callbacks from auth
   if (req.path.startsWith(`/v${API_VERSION}/documents/callback/`))
     return next();

@@ -9,6 +9,9 @@ const enumNames = {
 };
 
 export async function up(db: Kysely<any>): Promise<void> {
+  // Ensure citext extension is available for case-insensitive email
+  await sql`CREATE EXTENSION IF NOT EXISTS citext`.execute(db);
+
   /**
    * ------------------------------------------------------------------
    * ENUMS (PostgreSQL)
